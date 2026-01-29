@@ -1,0 +1,39 @@
+{
+  "name": "shakibul-cybersecurity-portfolio",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "csp:validate": "node scripts/validate-csp.js",
+    "csp:test": "NODE_ENV=production npm run build && npm start",
+    "csp:audit": "node scripts/csp-audit.js"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.6.1",
+    "@vercel/speed-insights": "^1.3.1",
+    "dompurify": "^3.3.1",
+    "hover-effect": "^1.2.1",
+    "jsdom": "^27.4.0",
+    "next": "^16.1.6",
+    "nodemailer": "^7.0.13",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-icons": "^5.5.0",
+    "validator": "^13.15.26"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^22.10.6",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "^15.2.3",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "5.7.3"
+  }
+}

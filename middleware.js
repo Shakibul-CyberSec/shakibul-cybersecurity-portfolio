@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 
 /* ---------- RATE LIMIT CONFIG ---------- */
 const RATE_LIMITS = {
@@ -38,17 +37,19 @@ function isBotUserAgent(ua) {
 }
 
 /* ---------- CLIENT FINGERPRINTING ---------- */
-function getFingerprint(request) {
+async function getFingerprint(request) {
   const ua = request.headers.get('user-agent') || '';
   const lang = request.headers.get('accept-language') || '';
   const encoding = request.headers.get('accept-encoding') || '';
   const secChUa = request.headers.get('sec-ch-ua') || '';
   const secChUaPlatform = request.headers.get('sec-ch-ua-platform') || '';
   
-  return crypto
-    .createHash('sha256')
-    .update(`${ua}|${lang}|${encoding}|${secChUa}|${secChUaPlatform}`)
-    .digest('hex');
+  const data = `${ua}|${lang}|${encoding}|${secChUa}|${secChUaPlatform}`;
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /* ---------- IP EXTRACTION ---------- */
@@ -141,13 +142,13 @@ function cleanupMemory() {
 setInterval(cleanupMemory, 10 * 60 * 1000);
 
 /* ---------- Middleware ---------- */
-export function middleware(request) {
+export async function middleware(request) {
   const pathname = request.nextUrl.pathname;
   
   /* 🔒 RATE LIMIT FOR /api/SendEmail */
   if (pathname === '/api/SendEmail') {
     const ip = getClientIP(request);
-    const fingerprint = getFingerprint(request);
+    const fingerprint = await getFingerprint(request);
     const method = request.method;
     
     // Multi-dimensional key: IP + Fingerprint + Method + Path
@@ -266,7 +267,7 @@ export function middleware(request) {
   }
   
   /* ---------- Generate Nonce ---------- */
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const nonce = crypto.randomUUID();
   const response = NextResponse.next();
   
   /* ---------- Strict CSP Header with Nonce ---------- */

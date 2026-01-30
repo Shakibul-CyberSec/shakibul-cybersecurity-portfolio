@@ -1,6 +1,7 @@
 import './globals.css';
 import { headers } from 'next/headers';
 import NonceScript from './components/NonceScript';
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export const metadata = {
   title: 'Shakibul Bokthiar | Cybersecurity Specialist',

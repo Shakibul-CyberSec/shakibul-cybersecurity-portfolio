@@ -10,6 +10,10 @@ const Contact = () => {
     email: '',
     subject: '',
     message: '',
+    // 🍯 HONEYPOT FIELDS - Hidden from humans, filled by bots
+    company: '',
+    website: '',
+    phone_number: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [responseMessage, setResponseMessage] = useState({ type: '', message: '' });
@@ -31,6 +35,10 @@ const Contact = () => {
           email: formData.email,
           subject: formData.subject,
           message: formData.message,
+          // Include honeypot fields in submission
+          company: formData.company,
+          website: formData.website,
+          phone_number: formData.phone_number
         }),
       });
 
@@ -42,7 +50,16 @@ const Contact = () => {
           type: 'success',
           message: data.message || 'Message sent successfully!'
         });
-        setFormData({ firstName: '', lastName: '', email: '', subject: '', message: '' });
+        setFormData({ 
+          firstName: '', 
+          lastName: '', 
+          email: '', 
+          subject: '', 
+          message: '',
+          company: '',
+          website: '',
+          phone_number: ''
+        });
         
         // Clear success message after 5 seconds
         setTimeout(() => {
@@ -305,6 +322,47 @@ const Contact = () => {
                   <div className="text-xs text-cyber-gray mt-1 text-right">
                     {formData.message.length}/2000
                   </div>
+                </div>
+
+                {/* 🍯 HONEYPOT FIELDS - Completely hidden from users */}
+                {/* Method 1: Absolute positioning off-screen */}
+                <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }} aria-hidden="true">
+                  <label htmlFor="company">Company (do not fill)</label>
+                  <input
+                    type="text"
+                    id="company"
+                    name="company"
+                    value={formData.company}
+                    onChange={handleChange}
+                    tabIndex="-1"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }} aria-hidden="true">
+                  <label htmlFor="website">Website (do not fill)</label>
+                  <input
+                    type="text"
+                    id="website"
+                    name="website"
+                    value={formData.website}
+                    onChange={handleChange}
+                    tabIndex="-1"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }} aria-hidden="true">
+                  <label htmlFor="phone_number">Phone (do not fill)</label>
+                  <input
+                    type="tel"
+                    id="phone_number"
+                    name="phone_number"
+                    value={formData.phone_number}
+                    onChange={handleChange}
+                    tabIndex="-1"
+                    autoComplete="off"
+                  />
                 </div>
 
                 <div className="flex items-center justify-between pt-6 border-t border-cyber-border">

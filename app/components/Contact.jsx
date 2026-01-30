@@ -324,10 +324,9 @@ const Contact = () => {
                   </div>
                 </div>
 
-                {/* 🍯 HONEYPOT FIELDS - Completely hidden from users */}
-                {/* Method 1: Absolute positioning off-screen */}
-                <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }} aria-hidden="true">
-                  <label htmlFor="company">Company (do not fill)</label>
+                {/* 🍯 HONEYPOT FIELDS - Completely hidden using CSS class (CSP-compliant) */}
+                <div className="hp-trap">
+                  <label htmlFor="company">Company</label>
                   <input
                     type="text"
                     id="company"
@@ -339,8 +338,8 @@ const Contact = () => {
                   />
                 </div>
 
-                <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }} aria-hidden="true">
-                  <label htmlFor="website">Website (do not fill)</label>
+                <div className="hp-trap">
+                  <label htmlFor="website">Website</label>
                   <input
                     type="text"
                     id="website"
@@ -352,8 +351,8 @@ const Contact = () => {
                   />
                 </div>
 
-                <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }} aria-hidden="true">
-                  <label htmlFor="phone_number">Phone (do not fill)</label>
+                <div className="hp-trap">
+                  <label htmlFor="phone_number">Phone</label>
                   <input
                     type="tel"
                     id="phone_number"

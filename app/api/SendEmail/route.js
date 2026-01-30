@@ -2,10 +2,15 @@ import createDOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 import validator from 'validator';
 import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 
 // Initialize services
 const window = new JSDOM('').window;
 const DOMPurify = createDOMPurify(window);
+
+// Honeypot and spam detection
+const HONEYPOT_FIELDS = ['company', 'website', 'phone_number']; // Hidden fields
+const shadowBanned = new Set(); // Persist shadow bans
 
 // Space Mail configuration
 const EMAIL_CONFIG = {
@@ -31,7 +36,7 @@ const EMAIL_CONFIG = {
 };
 
 const createTransporter = () => {
-  return nodemailer.createTransport(EMAIL_CONFIG); // ✅ Correct
+  return nodemailer.createTransport(EMAIL_CONFIG);
 };
 
 const logger = (level, message, ip, additionalData = {}) => {
@@ -70,6 +75,18 @@ const getClientIP = (req) => {
          'unknown-ip';
 };
 
+const getFingerprint = (req) => {
+  const ua = req.headers.get('user-agent') || '';
+  const lang = req.headers.get('accept-language') || '';
+  const encoding = req.headers.get('accept-encoding') || '';
+  
+  return crypto
+    .createHash('sha256')
+    .update(`${ua}|${lang}|${encoding}`)
+    .digest('hex')
+    .substring(0, 16);
+};
+
 const validateEmailConfig = () => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
     logger('critical', 'Email credentials not configured', 'system');
@@ -103,13 +120,99 @@ const testEmailConnection = async (transporter) => {
   }
 };
 
-export async function POST(req) {
+// Detect honeypot submissions
+const checkHoneypot = (body, ip, requestId) => {
+  for (const field of HONEYPOT_FIELDS) {
+    if (body[field] && body[field].trim().length > 0) {
+      logger('critical', 'Honeypot triggered - Bot detected', ip, {
+        requestId,
+        field,
+        value: body[field].substring(0, 20)
+      });
+      return true;
+    }
+  }
+  return false;
+};
+
+// Detect spam patterns
+const detectSpamPatterns = (message) => {
+  const spamKeywords = [
+    'viagra', 'cialis', 'lottery', 'winner', 'claim your prize',
+    'click here now', 'limited time offer', 'act now', 'free money',
+    'nigerian prince', 'inheritance', 'casino', 'poker'
+  ];
   
+  const lowerMessage = message.toLowerCase();
+  return spamKeywords.some(keyword => lowerMessage.includes(keyword));
+};
+
+// Check for identical payload reuse
+const payloadCache = new Map();
+const MAX_PAYLOAD_REUSE = 3;
+
+const checkPayloadReuse = (email, message, ip, requestId) => {
+  const payloadHash = crypto
+    .createHash('sha256')
+    .update(`${email}|${message}`)
+    .digest('hex');
+  
+  const record = payloadCache.get(payloadHash) || { count: 0, ips: new Set() };
+  record.count++;
+  record.ips.add(ip);
+  record.lastUsed = Date.now();
+  payloadCache.set(payloadHash, record);
+  
+  // Cleanup old entries every 100 checks
+  if (payloadCache.size > 1000) {
+    const now = Date.now();
+    for (const [hash, data] of payloadCache.entries()) {
+      if (now - data.lastUsed > 60 * 60 * 1000) { // 1 hour
+        payloadCache.delete(hash);
+      }
+    }
+  }
+  
+  if (record.count > MAX_PAYLOAD_REUSE) {
+    logger('warn', 'Identical payload detected multiple times', ip, {
+      requestId,
+      reuseCount: record.count,
+      uniqueIPs: record.ips.size
+    });
+    return true;
+  }
+  
+  return false;
+};
+
+export async function POST(req) {
   const requestId = crypto.randomUUID().substring(0, 8);
   const ip = getClientIP(req);
+  const fingerprint = getFingerprint(req);
+  const clientKey = `${ip}:${fingerprint}`;
   
   try {
-    logger('info', 'Request received', ip, { requestId });
+    logger('info', 'Request received', ip, { requestId, fingerprint });
+
+    // Check if shadow banned
+    if (shadowBanned.has(clientKey)) {
+      logger('info', 'Shadow banned client attempted request', ip, { requestId });
+      
+      // Return fake success
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Thank you for reaching out! Your message has been sent successfully. I\'ll get back to you soon.' 
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, max-age=0',
+          }
+        }
+      );
+    }
 
     if (!validateEmailConfig()) {
       return new Response(
@@ -156,6 +259,26 @@ export async function POST(req) {
         { 
           status: 400,
           headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // 🍯 HONEYPOT CHECK - Instant permanent ban
+    if (checkHoneypot(requestBody, ip, requestId)) {
+      shadowBanned.add(clientKey);
+      
+      // Return fake success - no feedback
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Thank you for reaching out! Your message has been sent successfully.' 
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store',
+          }
         }
       );
     }
@@ -243,6 +366,27 @@ export async function POST(req) {
       );
     }
 
+    // 🚨 SPAM PATTERN DETECTION
+    if (detectSpamPatterns(trimmedData.message)) {
+      logger('warn', 'Spam pattern detected', ip, { requestId });
+      shadowBanned.add(clientKey);
+      
+      // Return fake success
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Thank you for reaching out! Your message has been sent successfully.' 
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store',
+          }
+        }
+      );
+    }
+
     let normalizedEmail;
     try {
       normalizedEmail = validator.normalizeEmail(trimmedData.email);
@@ -267,6 +411,25 @@ export async function POST(req) {
         error: emailError.message
       });
       normalizedEmail = trimmedData.email.toLowerCase();
+    }
+
+    // 🔄 PAYLOAD REUSE DETECTION
+    if (checkPayloadReuse(normalizedEmail, trimmedData.message, ip, requestId)) {
+      logger('warn', 'Excessive payload reuse detected', ip, { requestId });
+      
+      // Don't ban immediately, but throttle
+      return new Response(
+        JSON.stringify({ 
+          error: 'This message has been submitted multiple times. Please wait before trying again.' 
+        }),
+        { 
+          status: 429,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Retry-After': '300'
+          }
+        }
+      );
     }
 
     let sanitizedData;
@@ -340,6 +503,7 @@ export async function POST(req) {
 Name: ${sanitizedData.firstName} ${sanitizedData.lastName}
 Email: ${sanitizedData.email}
 ${sanitizedData.subject ? `Subject: ${sanitizedData.subject}\n` : ''}Submitted: ${new Date().toLocaleString()}
+Request ID: ${requestId}
 
 Message:
 ${sanitizedData.message}
@@ -366,6 +530,7 @@ You can reply directly to ${sanitizedData.firstName} by clicking "Reply" in your
     .message-box { background-color: #f9fafb; padding: 20px; border-left: 4px solid #2563eb; border-radius: 6px; margin-top: 10px; line-height: 1.8; }
     .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #6b7280; text-align: center; }
     .highlight { color: #2563eb; font-weight: 600; }
+    .metadata { font-size: 11px; color: #9ca3af; margin-top: 5px; }
   </style>
 </head>
 <body>
@@ -382,6 +547,7 @@ You can reply directly to ${sanitizedData.firstName} by clicking "Reply" in your
         <span>${new Date().toLocaleString('en-US', { timeZone: 'Asia/Dhaka' })}</span>
         <small>(Bangladesh Time)</small>
       </div>
+      <div class="metadata">Request ID: ${requestId}</div>
     </div>
 
     <div class="section">
@@ -420,7 +586,8 @@ You can reply directly to ${sanitizedData.firstName} by clicking "Reply" in your
           'X-Priority': '3',
           'X-Mailer': 'Node.js/Nodemailer',
           'X-Request-ID': requestId,
-          'X-Mail-Service': 'SpaceMail'
+          'X-Mail-Service': 'SpaceMail',
+          'X-Client-Fingerprint': fingerprint
         }
       };
 

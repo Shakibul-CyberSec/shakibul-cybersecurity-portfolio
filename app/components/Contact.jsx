@@ -11,7 +11,7 @@ const Contact = () => {
     email: '',
     subject: '',
     message: '',
-    // 🍯 HONEYPOT FIELDS - Hidden from humans, filled by bots
+    // 🍯 HONEYPOT FIELDS - More obfuscated naming
     company: '',
     website: '',
     phone_number: ''
@@ -38,7 +38,6 @@ const Contact = () => {
           console.log('🔒 Device fingerprint initialized:', result.visitorId.substring(0, 8) + '...');
         } catch (error) {
           console.error('❌ Fingerprint initialization failed:', error);
-          // Fallback to a random ID if fingerprinting fails
           setVisitorId('fallback-' + Math.random().toString(36).substring(7));
         }
       };
@@ -52,7 +51,7 @@ const Contact = () => {
     if (showCaptcha && turnstileLoaded && window.turnstile && turnstileRef.current && !turnstileWidgetId.current) {
       try {
         turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
-          sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA', // Test key
+          sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
           callback: (token) => {
             console.log('✅ CAPTCHA solved');
             setCaptchaToken(token);
@@ -77,7 +76,6 @@ const Contact = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // If CAPTCHA is shown but not solved
     if (showCaptcha && !captchaToken) {
       setResponseMessage({
         type: 'error',
@@ -98,11 +96,9 @@ const Contact = () => {
         email: formData.email,
         subject: formData.subject,
         message: formData.message,
-        // Include honeypot fields
         company: formData.company,
         website: formData.website,
         phone_number: formData.phone_number,
-        // Security metadata
         visitorId: visitorId,
         timeOnPage: timeOnPage,
         captchaToken: captchaToken,
@@ -126,7 +122,6 @@ const Contact = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // Success
         setResponseMessage({
           type: 'success',
           message: data.message || 'Message sent successfully!'
@@ -142,18 +137,15 @@ const Contact = () => {
           phone_number: ''
         });
         
-        // Reset CAPTCHA if it was shown
         if (showCaptcha && window.turnstile && turnstileWidgetId.current) {
           window.turnstile.reset(turnstileWidgetId.current);
           setCaptchaToken(null);
         }
         
-        // Clear success message after 5 seconds
         setTimeout(() => {
           setResponseMessage({ type: '', message: '' });
         }, 5000);
       } else if (response.status === 429) {
-        // Rate limit exceeded
         const retryAfter = response.headers.get('Retry-After');
         const requiresCaptcha = data.requiresCaptcha;
         
@@ -163,7 +155,6 @@ const Contact = () => {
           message = `Rate limit exceeded. Please try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`;
         }
         
-        // Enable CAPTCHA mode if server requests it
         if (requiresCaptcha && !showCaptcha) {
           setShowCaptcha(true);
           message = 'Please complete the security verification to continue.';
@@ -174,7 +165,6 @@ const Contact = () => {
           message: message
         });
       } else if (response.status === 403) {
-        // CAPTCHA required or failed
         if (data.requiresCaptcha && !showCaptcha) {
           setShowCaptcha(true);
         }
@@ -183,13 +173,11 @@ const Contact = () => {
           message: data.error || 'Security verification required. Please try again.'
         });
         
-        // Reset CAPTCHA
         if (window.turnstile && turnstileWidgetId.current) {
           window.turnstile.reset(turnstileWidgetId.current);
           setCaptchaToken(null);
         }
       } else {
-        // Other errors
         setResponseMessage({
           type: 'error',
           message: data.error || 'Failed to send message. Please try again.'
@@ -210,7 +198,6 @@ const Contact = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Function to render response message with appropriate styling
   const renderResponseMessage = () => {
     if (!responseMessage.message) return null;
 
@@ -247,14 +234,12 @@ const Contact = () => {
 
   return (
     <>
-      {/* Load FingerprintJS */}
       <Script
         src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"
         strategy="lazyOnload"
         onLoad={() => setFingerprintLoaded(true)}
       />
       
-      {/* Load Cloudflare Turnstile only when needed */}
       {showCaptcha && (
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js"
@@ -265,7 +250,6 @@ const Contact = () => {
       
       <section id="contact" className="py-20 px-4">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <Animate animation="fadeInUp" delay={0.1} className="text-center mb-16">
           <div className="inline-flex items-center px-4 py-2 rounded-full bg-neon-green/10 border border-neon-green/30 mb-6 hover-glow-subtle">
             <FiShield className="w-4 h-4 text-neon-green mr-2" />
@@ -281,7 +265,6 @@ const Contact = () => {
         </Animate>
 
         <div className="grid lg:grid-cols-3 gap-8 mb-16">
-          {/* Contact Info */}
           <Stagger stagger={0.12} className="space-y-6">
             {[
               {
@@ -326,7 +309,6 @@ const Contact = () => {
               </div>
             ))}
 
-            {/* Social Links */}
             <div className="cyber-card hover-lift">
               <h4 className="text-lg font-semibold text-white mb-4">Connect</h4>
               <div className="flex space-x-4">
@@ -349,7 +331,6 @@ const Contact = () => {
             </div>
           </Stagger>
 
-          {/* Contact Form */}
           <div className="lg:col-span-2">
             <Animate animation="fadeInUp" delay={0.25} className="cyber-card p-8 hover-lift">
               <div className="flex items-center mb-8">
@@ -446,47 +427,73 @@ const Contact = () => {
                   </div>
                 </div>
 
-                {/* 🍯 HONEYPOT FIELDS - Completely hidden */}
-                <div className="hp-trap">
-                  <label htmlFor="company">Company</label>
+                {/* 🍯 OBFUSCATED HONEYPOT FIELDS */}
+                <div 
+                  style={{
+                    position: 'absolute',
+                    left: '-9999px',
+                    width: '1px',
+                    height: '1px',
+                    overflow: 'hidden'
+                  }}
+                  aria-hidden="true"
+                >
+                  <label htmlFor="company">Company Name</label>
                   <input
                     type="text"
                     id="company"
                     name="company"
                     value={formData.company}
                     onChange={handleChange}
-                    tabIndex="-1"
+                    tabIndex={-1}
                     autoComplete="off"
                   />
                 </div>
 
-                <div className="hp-trap">
-                  <label htmlFor="website">Website</label>
+                <div 
+                  style={{
+                    position: 'absolute',
+                    left: '-9999px',
+                    width: '1px',
+                    height: '1px',
+                    overflow: 'hidden'
+                  }}
+                  aria-hidden="true"
+                >
+                  <label htmlFor="website">Website URL</label>
                   <input
                     type="text"
                     id="website"
                     name="website"
                     value={formData.website}
                     onChange={handleChange}
-                    tabIndex="-1"
+                    tabIndex={-1}
                     autoComplete="off"
                   />
                 </div>
 
-                <div className="hp-trap">
-                  <label htmlFor="phone_number">Phone</label>
+                <div 
+                  style={{
+                    position: 'absolute',
+                    left: '-9999px',
+                    width: '1px',
+                    height: '1px',
+                    overflow: 'hidden'
+                  }}
+                  aria-hidden="true"
+                >
+                  <label htmlFor="phone_number">Phone Number</label>
                   <input
                     type="tel"
                     id="phone_number"
                     name="phone_number"
                     value={formData.phone_number}
                     onChange={handleChange}
-                    tabIndex="-1"
+                    tabIndex={-1}
                     autoComplete="off"
                   />
                 </div>
 
-                {/* Adaptive CAPTCHA - Only shows when triggered */}
                 {showCaptcha && (
                   <div className="animate-fadeInUp">
                     <div className="bg-yellow-500/10 border border-yellow-500 rounded-lg p-4 mb-4">
@@ -527,7 +534,6 @@ const Contact = () => {
           </div>
         </div>
 
-        {/* Footer */}
         <Animate animation="fadeInUp" delay={0.4} className="text-center pt-8 border-t border-cyber-border">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-cyber-gray mb-4 md:mb-0">

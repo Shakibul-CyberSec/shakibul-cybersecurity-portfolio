@@ -1,4 +1,38 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
+
+/* ---------- PERSISTENT STORAGE ---------- */
+const STORAGE_DIR = path.join(process.cwd(), '.rate-limit-db');
+const STORAGE_FILE = path.join(STORAGE_DIR, 'limits.json');
+
+async function ensureStorageDir() {
+  try {
+    await fs.mkdir(STORAGE_DIR, { recursive: true });
+  } catch (error) {
+    console.error('Failed to create storage directory:', error);
+  }
+}
+
+async function loadStorage() {
+  try {
+    await ensureStorageDir();
+    const data = await fs.readFile(STORAGE_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    return { requests: {}, violations: {}, banned: [] };
+  }
+}
+
+async function saveStorage(data) {
+  try {
+    await ensureStorageDir();
+    await fs.writeFile(STORAGE_FILE, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error('Failed to save storage:', error);
+  }
+}
 
 /* ---------- RATE LIMIT CONFIG ---------- */
 const RATE_LIMITS = {
@@ -7,12 +41,70 @@ const RATE_LIMITS = {
   ABUSIVE: { count: 1, window: 2 * 60 * 60 * 1000 } // 1 request per 2 hours
 };
 
-const ESCALATION_THRESHOLD = 3; // Violations before tier escalation
-const COOLDOWN_PERIOD = 24 * 60 * 60 * 1000; // 24 hours to reset tier
+const ESCALATION_THRESHOLD = 3;
+const COOLDOWN_PERIOD = 24 * 60 * 60 * 1000;
 
-const memory = new Map();
+// In-memory cache (fast access, synced to disk periodically)
+const memoryCache = new Map();
 const violationTracker = new Map();
 const shadowBanned = new Set();
+
+// Load from disk on startup
+let storageInitialized = false;
+
+async function initStorage() {
+  if (storageInitialized) return;
+  
+  try {
+    const data = await loadStorage();
+    
+    // Restore to memory
+    if (data.requests) {
+      Object.entries(data.requests).forEach(([key, value]) => {
+        memoryCache.set(key, value);
+      });
+    }
+    
+    if (data.violations) {
+      Object.entries(data.violations).forEach(([key, value]) => {
+        violationTracker.set(key, value);
+      });
+    }
+    
+    if (data.banned && Array.isArray(data.banned)) {
+      data.banned.forEach(key => shadowBanned.add(key));
+    }
+    
+    storageInitialized = true;
+    console.log('[Security] Rate limit storage initialized');
+  } catch (error) {
+    console.error('[Security] Failed to initialize storage:', error);
+    storageInitialized = true; // Continue anyway
+  }
+}
+
+// Persist to disk periodically
+let lastSave = Date.now();
+const SAVE_INTERVAL = 30 * 1000; // Save every 30 seconds
+
+async function maybePersist() {
+  const now = Date.now();
+  if (now - lastSave < SAVE_INTERVAL) return;
+  
+  try {
+    const data = {
+      requests: Object.fromEntries(memoryCache),
+      violations: Object.fromEntries(violationTracker),
+      banned: Array.from(shadowBanned),
+      lastUpdate: now
+    };
+    
+    await saveStorage(data);
+    lastSave = now;
+  } catch (error) {
+    console.error('[Security] Failed to persist storage:', error);
+  }
+}
 
 /* ---------- BOT DETECTION ---------- */
 const BAD_BOTS = [
@@ -28,12 +120,35 @@ const BAD_BOTS = [
   'scrapy',
   'bot',
   'crawler',
-  'spider'
+  'spider',
+  'selenium',
+  'phantomjs',
+  'headless'
 ];
 
 function isBotUserAgent(ua) {
   const normalizedUA = (ua || '').toLowerCase();
   return BAD_BOTS.some(bot => normalizedUA.includes(bot));
+}
+
+/* ---------- IP SUBNET EXTRACTION ---------- */
+// Extract /24 subnet to handle dynamic IPs from same ISP
+function getIPSubnet(ip) {
+  if (!ip || ip === 'unknown') return 'unknown';
+  
+  // IPv4: Get first 3 octets (e.g., 103.157.247.x -> 103.157.247)
+  const ipv4Match = ip.match(/^(\d+\.\d+\.\d+)\.\d+$/);
+  if (ipv4Match) {
+    return ipv4Match[1];
+  }
+  
+  // IPv6: Get first 48 bits
+  const ipv6Match = ip.match(/^([0-9a-f:]+::[0-9a-f:]+|[0-9a-f:]+:[0-9a-f:]+:[0-9a-f:]+)/i);
+  if (ipv6Match) {
+    return ipv6Match[1];
+  }
+  
+  return ip;
 }
 
 /* ---------- CLIENT FINGERPRINTING ---------- */
@@ -49,7 +164,7 @@ async function getFingerprint(request) {
   const dataBuffer = encoder.encode(data);
   const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
 }
 
 /* ---------- IP EXTRACTION ---------- */
@@ -89,21 +204,25 @@ function getViolationTier(clientKey) {
   return 'NORMAL';
 }
 
-function recordViolation(clientKey) {
-  const violations = violationTracker.get(clientKey) || { count: 0, lastViolation: 0 };
-  violations.count++;
-  violations.lastViolation = Date.now();
-  violationTracker.set(clientKey, violations);
-  
-  // Shadow ban if violations are extreme
-  if (violations.count >= ESCALATION_THRESHOLD * 3) {
-    shadowBanned.add(clientKey);
+function recordViolation(clientKey, subnetKey) {
+  // Record violation for both specific client and subnet
+  for (const key of [clientKey, subnetKey]) {
+    const violations = violationTracker.get(key) || { count: 0, lastViolation: 0 };
+    violations.count++;
+    violations.lastViolation = Date.now();
+    violationTracker.set(key, violations);
+    
+    // Shadow ban if violations are extreme
+    if (violations.count >= ESCALATION_THRESHOLD * 3) {
+      shadowBanned.add(key);
+      console.log(`[Security] Shadow banned: ${key.substring(0, 20)}...`);
+    }
   }
 }
 
 /* ---------- BEHAVIORAL ANALYSIS ---------- */
 function checkBehavior(clientKey, now) {
-  const record = memory.get(clientKey);
+  const record = memoryCache.get(clientKey);
   
   if (!record || !record.lastRequest) {
     return true; // First request
@@ -119,14 +238,28 @@ function checkBehavior(clientKey, now) {
   return true;
 }
 
+/* ---------- SUBNET-WIDE TRACKING ---------- */
+function getSubnetRequests(subnetKey, now, window) {
+  let totalRequests = 0;
+  
+  // Count all requests from this subnet across all fingerprints
+  for (const [key, record] of memoryCache.entries()) {
+    if (key.startsWith(subnetKey + ':') && (now - record.start < window)) {
+      totalRequests += record.count;
+    }
+  }
+  
+  return totalRequests;
+}
+
 /* ---------- MEMORY CLEANUP ---------- */
-function cleanupMemory() {
+async function cleanupMemory() {
   const now = Date.now();
   const maxAge = Math.max(...Object.values(RATE_LIMITS).map(l => l.window));
   
-  for (const [key, record] of memory.entries()) {
+  for (const [key, record] of memoryCache.entries()) {
     if (now - record.start > maxAge * 2) {
-      memory.delete(key);
+      memoryCache.delete(key);
     }
   }
   
@@ -136,6 +269,9 @@ function cleanupMemory() {
       shadowBanned.delete(key);
     }
   }
+  
+  // Persist after cleanup
+  await maybePersist();
 }
 
 // Run cleanup every 10 minutes
@@ -143,21 +279,26 @@ setInterval(cleanupMemory, 10 * 60 * 1000);
 
 /* ---------- Middleware ---------- */
 export async function middleware(request) {
+  // Initialize storage on first request
+  await initStorage();
+  
   const pathname = request.nextUrl.pathname;
   
   /* 🔒 RATE LIMIT FOR /api/SendEmail */
   if (pathname === '/api/SendEmail') {
     const ip = getClientIP(request);
+    const subnet = getIPSubnet(ip);
     const fingerprint = await getFingerprint(request);
     const method = request.method;
     
-    // Multi-dimensional key: IP + Fingerprint + Method + Path
-    const clientKey = `${ip}:${fingerprint}:${method}:${pathname}`;
+    // Multi-dimensional keys
+    const clientKey = `${subnet}:${fingerprint}:${method}`;
+    const subnetKey = `subnet:${subnet}:${method}`;
     
     /* ---------- BOT DETECTION ---------- */
     const ua = request.headers.get('user-agent') || '';
     if (isBotUserAgent(ua)) {
-      // Silent kill - no feedback to bots
+      console.log(`[Security] Bot detected: ${ua.substring(0, 50)}`);
       return new NextResponse(null, { 
         status: 204,
         headers: { 'Cache-Control': 'no-store' }
@@ -165,8 +306,8 @@ export async function middleware(request) {
     }
     
     /* ---------- SHADOW BAN CHECK ---------- */
-    if (shadowBanned.has(clientKey)) {
-      // Return fake success - attack dies naturally
+    if (shadowBanned.has(clientKey) || shadowBanned.has(subnetKey)) {
+      console.log(`[Security] Shadow banned request from ${subnet}`);
       return new NextResponse(
         JSON.stringify({ 
           success: true,
@@ -186,7 +327,7 @@ export async function middleware(request) {
     
     /* ---------- BEHAVIORAL ANALYSIS ---------- */
     if (!checkBehavior(clientKey, now)) {
-      recordViolation(clientKey);
+      recordViolation(clientKey, subnetKey);
       
       return new NextResponse(
         JSON.stringify({
@@ -205,36 +346,65 @@ export async function middleware(request) {
     
     /* ---------- PROGRESSIVE RATE LIMITING ---------- */
     const tier = getViolationTier(clientKey);
-    const limit = RATE_LIMITS[tier];
+    const subnetTier = getViolationTier(subnetKey);
+    const effectiveTier = RATE_LIMITS[subnetTier].window > RATE_LIMITS[tier].window ? subnetTier : tier;
+    const limit = RATE_LIMITS[effectiveTier];
     
-    const record = memory.get(clientKey) || { 
+    const record = memoryCache.get(clientKey) || { 
       count: 0, 
       start: now, 
       lastRequest: 0,
-      tier: tier 
+      tier: effectiveTier 
     };
     
     // Reset count if window has passed
     if (now - record.start > limit.window) {
       record.count = 0;
       record.start = now;
-      record.tier = tier;
+      record.tier = effectiveTier;
     }
     
     record.count++;
     record.lastRequest = now;
-    memory.set(clientKey, record);
+    memoryCache.set(clientKey, record);
+    
+    // SUBNET-WIDE CHECK: Prevent circumvention via profile switching
+    const subnetRequests = getSubnetRequests(subnet, now, limit.window);
+    const SUBNET_MULTIPLIER = 3; // Allow 3x normal limit across all profiles from same subnet
+    
+    if (subnetRequests > limit.count * SUBNET_MULTIPLIER) {
+      recordViolation(clientKey, subnetKey);
+      
+      const retryAfter = Math.ceil((record.start + limit.window - now) / 1000);
+      
+      console.log(`[Security] Subnet limit exceeded: ${subnet} (${subnetRequests} requests)`);
+      
+      return new NextResponse(
+        JSON.stringify({
+          error: 'Too many requests from your network. Please try again later.',
+          type: 'subnet_limit'
+        }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': retryAfter.toString(),
+            'Cache-Control': 'no-store',
+          },
+        }
+      );
+    }
     
     // Block if rate limit exceeded
     if (record.count > limit.count) {
-      recordViolation(clientKey);
+      recordViolation(clientKey, subnetKey);
       
       const retryAfter = Math.ceil((record.start + limit.window - now) / 1000);
       const minutes = Math.ceil(retryAfter / 60);
       
       // Different messages based on tier
       let errorMessage;
-      switch (tier) {
+      switch (effectiveTier) {
         case 'ABUSIVE':
           errorMessage = `Account temporarily restricted. Please try again in ${Math.ceil(retryAfter / 3600)} hour${Math.ceil(retryAfter / 3600) > 1 ? 's' : ''}.`;
           break;
@@ -249,7 +419,7 @@ export async function middleware(request) {
         JSON.stringify({
           error: errorMessage,
           type: 'rate_limit',
-          tier: process.env.NODE_ENV === 'development' ? tier : undefined
+          tier: process.env.NODE_ENV === 'development' ? effectiveTier : undefined
         }),
         {
           status: 429,
@@ -264,6 +434,9 @@ export async function middleware(request) {
         }
       );
     }
+    
+    // Persist changes
+    await maybePersist();
   }
   
   /* ---------- Generate Nonce ---------- */
@@ -273,11 +446,12 @@ export async function middleware(request) {
   /* ---------- Strict CSP Header with Nonce ---------- */
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js https://challenges.cloudflare.com/turnstile/v0/api.js;
     style-src 'self' 'nonce-${nonce}';
     font-src 'self' data:;
     img-src 'self' data: blob:;
-    connect-src 'self' ws: wss:;
+    connect-src 'self' https://api.fingerprint<br>.com https://challenges.cloudflare.com;
+    frame-src https://challenges.cloudflare.com;
     frame-ancestors 'none';
     base-uri 'none';
     form-action 'self';

@@ -3,8 +3,6 @@ import { JSDOM } from 'jsdom';
 import validator from 'validator';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
 
 // Initialize services
 const window = new JSDOM('').window;
@@ -13,79 +11,31 @@ const DOMPurify = createDOMPurify(window);
 // Honeypot fields (names are obfuscated in HTML using different strategy)
 const HONEYPOT_FIELDS = ['company', 'website', 'phone_number'];
 
-/* ---------- PERSISTENT EMAIL TRACKING ---------- */
-const EMAIL_DB_DIR = path.join(process.cwd(), '.email-tracking');
-const EMAIL_DB_FILE = path.join(EMAIL_DB_DIR, 'emails.json');
+/* ---------- VERCEL KV FOR EMAIL TRACKING ---------- */
+let kv = null;
+let kvAvailable = false;
 
-async function ensureEmailDBDir() {
+// Initialize Vercel KV
+if (typeof process !== 'undefined' && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
   try {
-    await fs.mkdir(EMAIL_DB_DIR, { recursive: true });
+    const kvModule = await import('@vercel/kv');
+    kv = kvModule.kv;
+    kvAvailable = true;
+    console.log('[Security] Vercel KV enabled for email tracking ✅');
   } catch (error) {
-    console.error('Failed to create email DB directory:', error);
+    console.log('[Security] Vercel KV not available - Using in-memory fallback ⚠️');
+    kvAvailable = false;
   }
 }
 
-async function loadEmailDB() {
-  try {
-    await ensureEmailDBDir();
-    const data = await fs.readFile(EMAIL_DB_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return { emails: {}, banned: [] };
-  }
-}
+const KV_PREFIXES = {
+  EMAIL_TRACKER: 'email:',
+  EMAIL_BANNED: 'email_ban:',
+};
 
-async function saveEmailDB(data) {
-  try {
-    await ensureEmailDBDir();
-    await fs.writeFile(EMAIL_DB_FILE, JSON.stringify(data, null, 2));
-  } catch (error) {
-    console.error('Failed to save email DB:', error);
-  }
-}
-
-// In-memory cache for email tracking
-const emailTracker = new Map();
-const emailBanned = new Set();
-let emailDBInitialized = false;
-
-async function initEmailDB() {
-  if (emailDBInitialized) return;
-  
-  try {
-    const data = await loadEmailDB();
-    
-    if (data.emails) {
-      Object.entries(data.emails).forEach(([email, info]) => {
-        emailTracker.set(email, info);
-      });
-    }
-    
-    if (data.banned && Array.isArray(data.banned)) {
-      data.banned.forEach(email => emailBanned.add(email));
-    }
-    
-    emailDBInitialized = true;
-    console.log('[Security] Email tracking DB initialized');
-  } catch (error) {
-    console.error('[Security] Failed to initialize email DB:', error);
-    emailDBInitialized = true;
-  }
-}
-
-async function persistEmailDB() {
-  try {
-    const data = {
-      emails: Object.fromEntries(emailTracker),
-      banned: Array.from(emailBanned),
-      lastUpdate: Date.now()
-    };
-    
-    await saveEmailDB(data);
-  } catch (error) {
-    console.error('[Security] Failed to persist email DB:', error);
-  }
-}
+// In-memory fallback (only used if KV unavailable)
+const emailTrackerMemory = new Map();
+const emailBannedMemory = new Set();
 
 // EMAIL-BASED RATE LIMITING
 const EMAIL_LIMITS = {
@@ -94,8 +44,68 @@ const EMAIL_LIMITS = {
   BAN_THRESHOLD: 10
 };
 
-function trackEmailRequest(email, now) {
-  const info = emailTracker.get(email) || {
+async function getEmailInfo(email) {
+  if (!kvAvailable || !kv) {
+    return emailTrackerMemory.get(email) || null;
+  }
+  
+  try {
+    return await kv.get(KV_PREFIXES.EMAIL_TRACKER + email);
+  } catch (error) {
+    console.error('[KV Error] Failed to get email info:', error.message);
+    return emailTrackerMemory.get(email) || null;
+  }
+}
+
+async function setEmailInfo(email, info) {
+  if (!kvAvailable || !kv) {
+    emailTrackerMemory.set(email, info);
+    return;
+  }
+  
+  try {
+    // Store with 7 days expiry
+    await kv.set(KV_PREFIXES.EMAIL_TRACKER + email, info, { ex: 7 * 24 * 60 * 60 });
+    emailTrackerMemory.set(email, info); // Also cache in memory
+  } catch (error) {
+    console.error('[KV Error] Failed to set email info:', error.message);
+    emailTrackerMemory.set(email, info);
+  }
+}
+
+async function isEmailBanned(email) {
+  if (!kvAvailable || !kv) {
+    return emailBannedMemory.has(email);
+  }
+  
+  try {
+    const banned = await kv.get(KV_PREFIXES.EMAIL_BANNED + email);
+    if (banned) emailBannedMemory.add(email);
+    return !!banned;
+  } catch (error) {
+    console.error('[KV Error] Failed to check email ban:', error.message);
+    return emailBannedMemory.has(email);
+  }
+}
+
+async function banEmail(email) {
+  if (!kvAvailable || !kv) {
+    emailBannedMemory.add(email);
+    return;
+  }
+  
+  try {
+    // Store ban with 30 days expiry
+    await kv.set(KV_PREFIXES.EMAIL_BANNED + email, true, { ex: 30 * 24 * 60 * 60 });
+    emailBannedMemory.add(email);
+  } catch (error) {
+    console.error('[KV Error] Failed to ban email:', error.message);
+    emailBannedMemory.add(email);
+  }
+}
+
+async function trackEmailRequest(email, now) {
+  const info = await getEmailInfo(email) || {
     requests: [],
     totalRequests: 0,
     firstSeen: now,
@@ -111,19 +121,19 @@ function trackEmailRequest(email, now) {
     now - timestamp < 24 * 60 * 60 * 1000
   );
   
-  emailTracker.set(email, info);
+  await setEmailInfo(email, info);
   
   // Auto-ban if excessive
   if (info.totalRequests >= EMAIL_LIMITS.BAN_THRESHOLD) {
-    emailBanned.add(email);
+    await banEmail(email);
     console.log(`[Security] Email auto-banned: ${email.substring(0, 5)}...`);
   }
   
   return info;
 }
 
-function isEmailRateLimited(email, now) {
-  const info = emailTracker.get(email);
+async function isEmailRateLimited(email, now) {
+  const info = await getEmailInfo(email);
   if (!info) return false;
   
   const recentRequests = info.requests.filter(timestamp => 
@@ -147,11 +157,11 @@ function isEmailRateLimited(email, now) {
 
 // 🎯 ADAPTIVE CAPTCHA CONFIGURATION
 const CAPTCHA_CONFIG = {
-  TRIGGER_THRESHOLD: 10,        // Show CAPTCHA after 10 requests (lowered)
-  TRIGGER_WINDOW: 5 * 60 * 1000, // Within 5 minutes
+  TRIGGER_THRESHOLD: 10,
+  TRIGGER_WINDOW: 5 * 60 * 1000,
   ACTIVE_DURATION: 10 * 60 * 1000,
   COOLDOWN_AFTER_SUCCESS: 5 * 60 * 1000,
-  EMAIL_TRIGGER: 2 // Show CAPTCHA after 2 requests from same email
+  EMAIL_TRIGGER: 2
 };
 
 const shadowBanned = new Set();
@@ -330,9 +340,9 @@ const checkPayloadReuse = (email, message, ip, requestId) => {
   return false;
 };
 
-const shouldRequireCaptcha = (clientKey, email, now) => {
+const shouldRequireCaptcha = async (clientKey, email, now) => {
   const tracker = requestTracker.get(clientKey);
-  const emailInfo = emailTracker.get(email);
+  const emailInfo = await getEmailInfo(email);
   
   // Trigger CAPTCHA if email has made multiple requests
   if (emailInfo && emailInfo.requests.length >= CAPTCHA_CONFIG.EMAIL_TRIGGER) {
@@ -493,7 +503,7 @@ const calculateRiskScore = (req, requestBody, clientKey, now) => {
   return { score, signals };
 };
 
-setInterval(async () => {
+setInterval(() => {
   const now = Date.now();
   
   for (const [key, tracker] of requestTracker.entries()) {
@@ -517,26 +527,11 @@ setInterval(async () => {
     }
   }
   
-  // Cleanup email tracker
-  for (const [email, info] of emailTracker.entries()) {
-    info.requests = info.requests.filter(timestamp =>
-      now - timestamp < 24 * 60 * 60 * 1000
-    );
-    if (info.requests.length === 0 && now - info.lastSeen > 7 * 24 * 60 * 60 * 1000) {
-      emailTracker.delete(email);
-    }
-  }
-  
-  // Persist email DB
-  await persistEmailDB();
-  
   logger('debug', 'Cleanup completed', 'system', {
     requestTrackerSize: requestTracker.size,
     captchaStatesSize: captchaStates.size,
     payloadCacheSize: payloadCache.size,
-    shadowBannedSize: shadowBanned.size,
-    emailTrackerSize: emailTracker.size,
-    emailBannedSize: emailBanned.size
+    shadowBannedSize: shadowBanned.size
   });
 }, 10 * 60 * 1000);
 
@@ -545,9 +540,6 @@ export async function POST(req) {
   const ip = getClientIP(req);
   const subnet = getIPSubnet(ip);
   const now = Date.now();
-  
-  // Initialize email DB
-  await initEmailDB();
   
   try {
     logger('info', 'Request received', ip, { requestId, subnet });
@@ -604,8 +596,8 @@ export async function POST(req) {
       );
     }
 
-    // EMAIL-BASED RATE LIMITING (cannot be bypassed by profile switching)
-    if (emailBanned.has(email)) {
+    // EMAIL-BASED RATE LIMITING (persistent via Vercel KV)
+    if (await isEmailBanned(email)) {
       logger('warn', 'Banned email attempted request', ip, {
         requestId,
         email: email.substring(0, 5) + '...'
@@ -626,7 +618,7 @@ export async function POST(req) {
       );
     }
 
-    const emailLimit = isEmailRateLimited(email, now);
+    const emailLimit = await isEmailRateLimited(email, now);
     if (emailLimit) {
       logger('warn', 'Email rate limit exceeded', ip, {
         requestId,
@@ -654,11 +646,10 @@ export async function POST(req) {
       );
     }
 
-    // Track this email request
-    trackEmailRequest(email, now);
-    await persistEmailDB(); // Persist immediately to prevent bypass
+    // Track this email request (persistent via Vercel KV)
+    await trackEmailRequest(email, now);
 
-    const captchaRequired = shouldRequireCaptcha(clientKey, email, now);
+    const captchaRequired = await shouldRequireCaptcha(clientKey, email, now);
     
     if (captchaRequired) {
       const captchaToken = requestBody.captchaToken;
@@ -758,8 +749,7 @@ export async function POST(req) {
 
     if (checkHoneypot(requestBody, ip, requestId)) {
       shadowBanned.add(clientKey);
-      emailBanned.add(email);
-      await persistEmailDB();
+      await banEmail(email);
       
       return new Response(
         JSON.stringify({ 
@@ -841,8 +831,7 @@ export async function POST(req) {
     if (detectSpamPatterns(trimmedData.message)) {
       logger('warn', 'Spam pattern detected', ip, { requestId });
       shadowBanned.add(clientKey);
-      emailBanned.add(email);
-      await persistEmailDB();
+      await banEmail(email);
       
       return new Response(
         JSON.stringify({ 

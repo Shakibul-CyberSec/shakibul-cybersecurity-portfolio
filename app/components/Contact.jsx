@@ -11,7 +11,7 @@ const Contact = () => {
     email: '',
     subject: '',
     message: '',
-    // 🍯 HONEYPOT FIELDS - More obfuscated naming
+    // 🍯 HONEYPOT FIELDS - Hidden from real users
     company: '',
     website: '',
     phone_number: ''
@@ -427,18 +427,9 @@ const Contact = () => {
                   </div>
                 </div>
 
-                {/* 🍯 OBFUSCATED HONEYPOT FIELDS */}
-                <div 
-                  style={{
-                    position: 'absolute',
-                    left: '-9999px',
-                    width: '1px',
-                    height: '1px',
-                    overflow: 'hidden'
-                  }}
-                  aria-hidden="true"
-                >
-                  <label htmlFor="company">Company Name</label>
+                {/* 🍯 HONEYPOT FIELDS - Completely hidden from real users, only bots will fill these */}
+                <div className="hidden">
+                  <label htmlFor="company">Company Name (Leave blank)</label>
                   <input
                     type="text"
                     id="company"
@@ -448,19 +439,8 @@ const Contact = () => {
                     tabIndex={-1}
                     autoComplete="off"
                   />
-                </div>
-
-                <div 
-                  style={{
-                    position: 'absolute',
-                    left: '-9999px',
-                    width: '1px',
-                    height: '1px',
-                    overflow: 'hidden'
-                  }}
-                  aria-hidden="true"
-                >
-                  <label htmlFor="website">Website URL</label>
+                  
+                  <label htmlFor="website">Website URL (Leave blank)</label>
                   <input
                     type="text"
                     id="website"
@@ -470,19 +450,8 @@ const Contact = () => {
                     tabIndex={-1}
                     autoComplete="off"
                   />
-                </div>
-
-                <div 
-                  style={{
-                    position: 'absolute',
-                    left: '-9999px',
-                    width: '1px',
-                    height: '1px',
-                    overflow: 'hidden'
-                  }}
-                  aria-hidden="true"
-                >
-                  <label htmlFor="phone_number">Phone Number</label>
+                  
+                  <label htmlFor="phone_number">Phone Number (Leave blank)</label>
                   <input
                     type="tel"
                     id="phone_number"

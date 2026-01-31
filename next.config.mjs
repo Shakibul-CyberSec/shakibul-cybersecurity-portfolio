@@ -51,8 +51,6 @@ const nextConfig = {
   // Compress responses
   compress: true,
   
-  // Minification with SWC
-  swcMinify: true,
   
   // Compiler options for CSP and production optimization
   compiler: {

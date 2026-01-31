@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FiMail, FiGithub, FiLinkedin, FiSend, FiShield, FiCheckCircle, FiAlertCircle, FiClock } from 'react-icons/fi';
 import { Animate, Stagger } from './Animations';
+import Script from 'next/script';
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -17,29 +18,109 @@ const Contact = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [responseMessage, setResponseMessage] = useState({ type: '', message: '' });
+  const [visitorId, setVisitorId] = useState(null);
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const pageLoadTime = useRef(Date.now());
+  const turnstileRef = useRef(null);
+  const turnstileWidgetId = useRef(null);
+  const [fingerprintLoaded, setFingerprintLoaded] = useState(false);
+  const [turnstileLoaded, setTurnstileLoaded] = useState(false);
+
+  // Initialize FingerprintJS after script loads
+  useEffect(() => {
+    if (fingerprintLoaded && window.FingerprintJS) {
+      const initFingerprint = async () => {
+        try {
+          const fp = await window.FingerprintJS.load();
+          const result = await fp.get();
+          setVisitorId(result.visitorId);
+          console.log('🔒 Device fingerprint initialized:', result.visitorId.substring(0, 8) + '...');
+        } catch (error) {
+          console.error('❌ Fingerprint initialization failed:', error);
+          // Fallback to a random ID if fingerprinting fails
+          setVisitorId('fallback-' + Math.random().toString(36).substring(7));
+        }
+      };
+      
+      initFingerprint();
+    }
+  }, [fingerprintLoaded]);
+
+  // Render Turnstile when needed and loaded
+  useEffect(() => {
+    if (showCaptcha && turnstileLoaded && window.turnstile && turnstileRef.current && !turnstileWidgetId.current) {
+      try {
+        turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
+          sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA', // Test key
+          callback: (token) => {
+            console.log('✅ CAPTCHA solved');
+            setCaptchaToken(token);
+          },
+          'error-callback': () => {
+            console.error('❌ CAPTCHA error');
+            setCaptchaToken(null);
+          },
+          'expired-callback': () => {
+            console.warn('⏰ CAPTCHA expired');
+            setCaptchaToken(null);
+          },
+          theme: 'dark',
+          size: 'normal',
+        });
+      } catch (error) {
+        console.error('❌ Turnstile render error:', error);
+      }
+    }
+  }, [showCaptcha, turnstileLoaded]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // If CAPTCHA is shown but not solved
+    if (showCaptcha && !captchaToken) {
+      setResponseMessage({
+        type: 'error',
+        message: 'Please complete the security verification before submitting.'
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     setResponseMessage({ type: '', message: '' });
     
     try {
+      const timeOnPage = Date.now() - pageLoadTime.current;
+      
+      const payload = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        subject: formData.subject,
+        message: formData.message,
+        // Include honeypot fields
+        company: formData.company,
+        website: formData.website,
+        phone_number: formData.phone_number,
+        // Security metadata
+        visitorId: visitorId,
+        timeOnPage: timeOnPage,
+        captchaToken: captchaToken,
+        timestamp: Date.now()
+      };
+
+      console.log('📤 Submitting form...', {
+        visitorId: visitorId?.substring(0, 8) + '...',
+        timeOnPage: `${(timeOnPage / 1000).toFixed(1)}s`,
+        hasCaptcha: !!captchaToken
+      });
+
       const response = await fetch('/api/SendEmail', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          subject: formData.subject,
-          message: formData.message,
-          // Include honeypot fields in submission
-          company: formData.company,
-          website: formData.website,
-          phone_number: formData.phone_number
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -61,6 +142,12 @@ const Contact = () => {
           phone_number: ''
         });
         
+        // Reset CAPTCHA if it was shown
+        if (showCaptcha && window.turnstile && turnstileWidgetId.current) {
+          window.turnstile.reset(turnstileWidgetId.current);
+          setCaptchaToken(null);
+        }
+        
         // Clear success message after 5 seconds
         setTimeout(() => {
           setResponseMessage({ type: '', message: '' });
@@ -68,21 +155,39 @@ const Contact = () => {
       } else if (response.status === 429) {
         // Rate limit exceeded
         const retryAfter = response.headers.get('Retry-After');
-        const rateLimitType = response.headers.get('X-RateLimit-Type');
+        const requiresCaptcha = data.requiresCaptcha;
         
         let message = 'Too many requests. Please try again later.';
         if (retryAfter) {
           const minutes = Math.ceil(parseInt(retryAfter) / 60);
           message = `Rate limit exceeded. Please try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`;
         }
-        if (rateLimitType === 'email') {
-          message += ' (This email address has reached its limit)';
+        
+        // Enable CAPTCHA mode if server requests it
+        if (requiresCaptcha && !showCaptcha) {
+          setShowCaptcha(true);
+          message = 'Please complete the security verification to continue.';
         }
         
         setResponseMessage({
           type: 'ratelimit',
           message: message
         });
+      } else if (response.status === 403) {
+        // CAPTCHA required or failed
+        if (data.requiresCaptcha && !showCaptcha) {
+          setShowCaptcha(true);
+        }
+        setResponseMessage({
+          type: 'error',
+          message: data.error || 'Security verification required. Please try again.'
+        });
+        
+        // Reset CAPTCHA
+        if (window.turnstile && turnstileWidgetId.current) {
+          window.turnstile.reset(turnstileWidgetId.current);
+          setCaptchaToken(null);
+        }
       } else {
         // Other errors
         setResponseMessage({
@@ -91,7 +196,7 @@ const Contact = () => {
         });
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Error sending message:', error);
       setResponseMessage({
         type: 'error',
         message: 'Network error. Please check your connection and try again.'
@@ -141,7 +246,24 @@ const Contact = () => {
   };
 
   return (
-    <section id="contact" className="py-20 px-4">
+    <>
+      {/* Load FingerprintJS */}
+      <Script
+        src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"
+        strategy="lazyOnload"
+        onLoad={() => setFingerprintLoaded(true)}
+      />
+      
+      {/* Load Cloudflare Turnstile only when needed */}
+      {showCaptcha && (
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+          strategy="lazyOnload"
+          onLoad={() => setTurnstileLoaded(true)}
+        />
+      )}
+      
+      <section id="contact" className="py-20 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <Animate animation="fadeInUp" delay={0.1} className="text-center mb-16">
@@ -324,7 +446,7 @@ const Contact = () => {
                   </div>
                 </div>
 
-                {/* 🍯 HONEYPOT FIELDS - Completely hidden using CSS class (CSP-compliant) */}
+                {/* 🍯 HONEYPOT FIELDS - Completely hidden */}
                 <div className="hp-trap">
                   <label htmlFor="company">Company</label>
                   <input
@@ -364,6 +486,26 @@ const Contact = () => {
                   />
                 </div>
 
+                {/* Adaptive CAPTCHA - Only shows when triggered */}
+                {showCaptcha && (
+                  <div className="animate-fadeInUp">
+                    <div className="bg-yellow-500/10 border border-yellow-500 rounded-lg p-4 mb-4">
+                      <div className="flex items-start">
+                        <FiShield className="w-5 h-5 text-yellow-400 mr-3 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="text-yellow-400 font-semibold mb-1">Security Verification Required</h4>
+                          <p className="text-sm text-cyber-gray">
+                            We've detected unusual activity. Please complete the verification below to continue.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-center">
+                      <div ref={turnstileRef}></div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between pt-6 border-t border-cyber-border">
                   <div className="flex items-center text-sm text-cyber-gray">
                     <FiShield className="mr-2 text-neon-green" />
@@ -371,7 +513,7 @@ const Contact = () => {
                   </div>
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || (showCaptcha && !captchaToken)}
                     className="group relative inline-flex items-center px-8 py-3 bg-gradient-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-neon-green/30 transition-all duration-300 hover:scale-105 active:scale-95"
                   >
                     <span className="relative z-10 flex items-center">
@@ -401,6 +543,7 @@ const Contact = () => {
         </Animate>
       </div>
     </section>
+    </>
   );
 };
 

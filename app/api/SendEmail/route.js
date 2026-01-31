@@ -3,26 +3,160 @@ import { JSDOM } from 'jsdom';
 import validator from 'validator';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
 
 // Initialize services
 const window = new JSDOM('').window;
 const DOMPurify = createDOMPurify(window);
 
-// Honeypot and spam detection
+// Honeypot fields (names are obfuscated in HTML using different strategy)
 const HONEYPOT_FIELDS = ['company', 'website', 'phone_number'];
-const shadowBanned = new Set();
+
+/* ---------- PERSISTENT EMAIL TRACKING ---------- */
+const EMAIL_DB_DIR = path.join(process.cwd(), '.email-tracking');
+const EMAIL_DB_FILE = path.join(EMAIL_DB_DIR, 'emails.json');
+
+async function ensureEmailDBDir() {
+  try {
+    await fs.mkdir(EMAIL_DB_DIR, { recursive: true });
+  } catch (error) {
+    console.error('Failed to create email DB directory:', error);
+  }
+}
+
+async function loadEmailDB() {
+  try {
+    await ensureEmailDBDir();
+    const data = await fs.readFile(EMAIL_DB_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    return { emails: {}, banned: [] };
+  }
+}
+
+async function saveEmailDB(data) {
+  try {
+    await ensureEmailDBDir();
+    await fs.writeFile(EMAIL_DB_FILE, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error('Failed to save email DB:', error);
+  }
+}
+
+// In-memory cache for email tracking
+const emailTracker = new Map();
+const emailBanned = new Set();
+let emailDBInitialized = false;
+
+async function initEmailDB() {
+  if (emailDBInitialized) return;
+  
+  try {
+    const data = await loadEmailDB();
+    
+    if (data.emails) {
+      Object.entries(data.emails).forEach(([email, info]) => {
+        emailTracker.set(email, info);
+      });
+    }
+    
+    if (data.banned && Array.isArray(data.banned)) {
+      data.banned.forEach(email => emailBanned.add(email));
+    }
+    
+    emailDBInitialized = true;
+    console.log('[Security] Email tracking DB initialized');
+  } catch (error) {
+    console.error('[Security] Failed to initialize email DB:', error);
+    emailDBInitialized = true;
+  }
+}
+
+async function persistEmailDB() {
+  try {
+    const data = {
+      emails: Object.fromEntries(emailTracker),
+      banned: Array.from(emailBanned),
+      lastUpdate: Date.now()
+    };
+    
+    await saveEmailDB(data);
+  } catch (error) {
+    console.error('[Security] Failed to persist email DB:', error);
+  }
+}
+
+// EMAIL-BASED RATE LIMITING
+const EMAIL_LIMITS = {
+  MAX_REQUESTS_PER_HOUR: 3,
+  MAX_REQUESTS_PER_DAY: 5,
+  BAN_THRESHOLD: 10
+};
+
+function trackEmailRequest(email, now) {
+  const info = emailTracker.get(email) || {
+    requests: [],
+    totalRequests: 0,
+    firstSeen: now,
+    lastSeen: now
+  };
+  
+  info.requests.push(now);
+  info.totalRequests++;
+  info.lastSeen = now;
+  
+  // Keep only last 24 hours
+  info.requests = info.requests.filter(timestamp => 
+    now - timestamp < 24 * 60 * 60 * 1000
+  );
+  
+  emailTracker.set(email, info);
+  
+  // Auto-ban if excessive
+  if (info.totalRequests >= EMAIL_LIMITS.BAN_THRESHOLD) {
+    emailBanned.add(email);
+    console.log(`[Security] Email auto-banned: ${email.substring(0, 5)}...`);
+  }
+  
+  return info;
+}
+
+function isEmailRateLimited(email, now) {
+  const info = emailTracker.get(email);
+  if (!info) return false;
+  
+  const recentRequests = info.requests.filter(timestamp => 
+    now - timestamp < 60 * 60 * 1000
+  );
+  
+  const todayRequests = info.requests.filter(timestamp => 
+    now - timestamp < 24 * 60 * 60 * 1000
+  );
+  
+  if (recentRequests.length >= EMAIL_LIMITS.MAX_REQUESTS_PER_HOUR) {
+    return { limited: true, reason: 'hour', count: recentRequests.length };
+  }
+  
+  if (todayRequests.length >= EMAIL_LIMITS.MAX_REQUESTS_PER_DAY) {
+    return { limited: true, reason: 'day', count: todayRequests.length };
+  }
+  
+  return false;
+}
 
 // 🎯 ADAPTIVE CAPTCHA CONFIGURATION
 const CAPTCHA_CONFIG = {
-  TRIGGER_THRESHOLD: 15,        // Show CAPTCHA after 15 requests
+  TRIGGER_THRESHOLD: 10,        // Show CAPTCHA after 10 requests (lowered)
   TRIGGER_WINDOW: 5 * 60 * 1000, // Within 5 minutes
-  ACTIVE_DURATION: 10 * 60 * 1000, // CAPTCHA stays active for 10 minutes
-  COOLDOWN_AFTER_SUCCESS: 5 * 60 * 1000 // 5 minutes cooldown after successful CAPTCHA
+  ACTIVE_DURATION: 10 * 60 * 1000,
+  COOLDOWN_AFTER_SUCCESS: 5 * 60 * 1000,
+  EMAIL_TRIGGER: 2 // Show CAPTCHA after 2 requests from same email
 };
 
-// Track requests for adaptive CAPTCHA
-const requestTracker = new Map(); // { clientKey: { requests: [timestamps], captchaActivatedAt: timestamp, lastSuccessfulCaptcha: timestamp } }
-const captchaStates = new Map(); // { clientKey: { required: boolean, activatedAt: timestamp } }
+const shadowBanned = new Set();
+const requestTracker = new Map();
+const captchaStates = new Map();
 
 // Space Mail configuration
 const EMAIL_CONFIG = {
@@ -87,6 +221,13 @@ const getClientIP = (req) => {
          'unknown-ip';
 };
 
+const getIPSubnet = (ip) => {
+  if (!ip || ip === 'unknown-ip') return 'unknown';
+  const ipv4Match = ip.match(/^(\d+\.\d+\.\d+)\.\d+$/);
+  if (ipv4Match) return ipv4Match[1];
+  return ip;
+};
+
 const getServerFingerprint = (req) => {
   const ua = req.headers.get('user-agent') || '';
   const lang = req.headers.get('accept-language') || '';
@@ -127,7 +268,6 @@ const testEmailConnection = async (transporter) => {
   }
 };
 
-// 🍯 Detect honeypot submissions
 const checkHoneypot = (body, ip, requestId) => {
   for (const field of HONEYPOT_FIELDS) {
     if (body[field] && body[field].trim().length > 0) {
@@ -142,7 +282,6 @@ const checkHoneypot = (body, ip, requestId) => {
   return false;
 };
 
-// 🚨 Detect spam patterns
 const detectSpamPatterns = (message) => {
   const spamKeywords = [
     'viagra', 'cialis', 'lottery', 'winner', 'claim your prize',
@@ -155,7 +294,6 @@ const detectSpamPatterns = (message) => {
   return spamKeywords.some(keyword => lowerMessage.includes(keyword));
 };
 
-// 🔄 Check for identical payload reuse
 const payloadCache = new Map();
 const MAX_PAYLOAD_REUSE = 3;
 
@@ -171,7 +309,6 @@ const checkPayloadReuse = (email, message, ip, requestId) => {
   record.lastUsed = Date.now();
   payloadCache.set(payloadHash, record);
   
-  // Cleanup old entries
   if (payloadCache.size > 1000) {
     const now = Date.now();
     for (const [hash, data] of payloadCache.entries()) {
@@ -193,18 +330,29 @@ const checkPayloadReuse = (email, message, ip, requestId) => {
   return false;
 };
 
-// 🎯 ADAPTIVE CAPTCHA LOGIC
-const shouldRequireCaptcha = (clientKey, now) => {
+const shouldRequireCaptcha = (clientKey, email, now) => {
   const tracker = requestTracker.get(clientKey);
+  const emailInfo = emailTracker.get(email);
   
-  if (!tracker) {
-    return false;
+  // Trigger CAPTCHA if email has made multiple requests
+  if (emailInfo && emailInfo.requests.length >= CAPTCHA_CONFIG.EMAIL_TRIGGER) {
+    const captchaState = captchaStates.get(clientKey);
+    if (!captchaState || !captchaState.required) {
+      captchaStates.set(clientKey, {
+        required: true,
+        activatedAt: now,
+        reason: 'email_frequency'
+      });
+      logger('warn', 'CAPTCHA triggered by email frequency', 'system', {
+        email: email.substring(0, 5) + '...',
+        requestCount: emailInfo.requests.length
+      });
+    }
+    return true;
   }
   
-  // Check if CAPTCHA is currently active
   const captchaState = captchaStates.get(clientKey);
   if (captchaState && captchaState.required) {
-    // Check if CAPTCHA active duration has expired
     if (now - captchaState.activatedAt > CAPTCHA_CONFIG.ACTIVE_DURATION) {
       captchaStates.delete(clientKey);
       logger('info', 'CAPTCHA requirement expired', 'system', { clientKey: clientKey.substring(0, 20) });
@@ -213,28 +361,27 @@ const shouldRequireCaptcha = (clientKey, now) => {
     return true;
   }
   
-  // Check if we're in cooldown period after successful CAPTCHA
+  if (!tracker) return false;
+  
   if (tracker.lastSuccessfulCaptcha && (now - tracker.lastSuccessfulCaptcha < CAPTCHA_CONFIG.COOLDOWN_AFTER_SUCCESS)) {
     return false;
   }
   
-  // Filter requests within the trigger window
   const recentRequests = tracker.requests.filter(timestamp => 
     now - timestamp < CAPTCHA_CONFIG.TRIGGER_WINDOW
   );
   
   tracker.requests = recentRequests;
   
-  // Trigger CAPTCHA if threshold exceeded
   if (recentRequests.length >= CAPTCHA_CONFIG.TRIGGER_THRESHOLD) {
     captchaStates.set(clientKey, {
       required: true,
-      activatedAt: now
+      activatedAt: now,
+      reason: 'request_frequency'
     });
     logger('warn', 'CAPTCHA triggered due to high request volume', 'system', {
       clientKey: clientKey.substring(0, 20),
-      requestCount: recentRequests.length,
-      window: CAPTCHA_CONFIG.TRIGGER_WINDOW / 1000 + 's'
+      requestCount: recentRequests.length
     });
     return true;
   }
@@ -249,8 +396,6 @@ const recordRequest = (clientKey, now) => {
   };
   
   tracker.requests.push(now);
-  
-  // Keep only recent requests (last hour)
   tracker.requests = tracker.requests.filter(timestamp => 
     now - timestamp < 60 * 60 * 1000
   );
@@ -262,11 +407,10 @@ const recordSuccessfulCaptcha = (clientKey, now) => {
   const tracker = requestTracker.get(clientKey);
   if (tracker) {
     tracker.lastSuccessfulCaptcha = now;
-    tracker.requests = []; // Reset request counter after successful CAPTCHA
+    tracker.requests = [];
     requestTracker.set(clientKey, tracker);
   }
   
-  // Remove CAPTCHA requirement
   captchaStates.delete(clientKey);
   
   logger('info', 'CAPTCHA solved successfully', 'system', {
@@ -274,7 +418,6 @@ const recordSuccessfulCaptcha = (clientKey, now) => {
   });
 };
 
-// 🎯 Verify Cloudflare Turnstile
 const verifyTurnstile = async (token, ip) => {
   try {
     const response = await fetch(
@@ -309,19 +452,16 @@ const verifyTurnstile = async (token, ip) => {
   }
 };
 
-// 🧠 BEHAVIORAL RISK SCORING
 const calculateRiskScore = (req, requestBody, clientKey, now) => {
   let score = 0;
   const signals = [];
   
-  // 1. Check time on page (too fast = bot)
   const timeOnPage = requestBody.timeOnPage || 0;
   if (timeOnPage < 3000) {
     score += 30;
     signals.push(`fast_fill:${timeOnPage}ms`);
   }
   
-  // 2. Check if fingerprint matches with visitorId
   const serverFingerprint = getServerFingerprint(req);
   const clientVisitorId = requestBody.visitorId;
   
@@ -330,7 +470,6 @@ const calculateRiskScore = (req, requestBody, clientKey, now) => {
     signals.push('no_fingerprint');
   }
   
-  // 3. Check user agent
   const ua = req.headers.get('user-agent') || '';
   const suspiciousBots = ['curl', 'wget', 'python', 'bot', 'crawler', 'scraper'];
   if (suspiciousBots.some(bot => ua.toLowerCase().includes(bot))) {
@@ -338,16 +477,14 @@ const calculateRiskScore = (req, requestBody, clientKey, now) => {
     signals.push('suspicious_ua');
   }
   
-  // 4. Check request frequency
   const tracker = requestTracker.get(clientKey);
   if (tracker && tracker.requests.length > 10) {
     score += 25;
     signals.push(`high_frequency:${tracker.requests.length}`);
   }
   
-  // 5. Check if email is disposable
   const email = requestBody.email || '';
-  const disposableDomains = ['tempmail', 'guerrillamail', '10minutemail', 'throwaway'];
+  const disposableDomains = ['tempmail', 'guerrillamail', '10minutemail', 'throwaway', 'mailinator'];
   if (disposableDomains.some(domain => email.toLowerCase().includes(domain))) {
     score += 35;
     signals.push('disposable_email');
@@ -356,11 +493,9 @@ const calculateRiskScore = (req, requestBody, clientKey, now) => {
   return { score, signals };
 };
 
-// 🧹 Cleanup old data periodically
-setInterval(() => {
+setInterval(async () => {
   const now = Date.now();
   
-  // Cleanup request tracker
   for (const [key, tracker] of requestTracker.entries()) {
     tracker.requests = tracker.requests.filter(timestamp => 
       now - timestamp < 60 * 60 * 1000
@@ -370,35 +505,52 @@ setInterval(() => {
     }
   }
   
-  // Cleanup CAPTCHA states
   for (const [key, state] of captchaStates.entries()) {
     if (now - state.activatedAt > CAPTCHA_CONFIG.ACTIVE_DURATION * 2) {
       captchaStates.delete(key);
     }
   }
   
-  // Cleanup payload cache
   for (const [hash, data] of payloadCache.entries()) {
     if (now - data.lastUsed > 60 * 60 * 1000) {
       payloadCache.delete(hash);
     }
   }
   
+  // Cleanup email tracker
+  for (const [email, info] of emailTracker.entries()) {
+    info.requests = info.requests.filter(timestamp =>
+      now - timestamp < 24 * 60 * 60 * 1000
+    );
+    if (info.requests.length === 0 && now - info.lastSeen > 7 * 24 * 60 * 60 * 1000) {
+      emailTracker.delete(email);
+    }
+  }
+  
+  // Persist email DB
+  await persistEmailDB();
+  
   logger('debug', 'Cleanup completed', 'system', {
     requestTrackerSize: requestTracker.size,
     captchaStatesSize: captchaStates.size,
     payloadCacheSize: payloadCache.size,
-    shadowBannedSize: shadowBanned.size
+    shadowBannedSize: shadowBanned.size,
+    emailTrackerSize: emailTracker.size,
+    emailBannedSize: emailBanned.size
   });
-}, 10 * 60 * 1000); // Every 10 minutes
+}, 10 * 60 * 1000);
 
 export async function POST(req) {
   const requestId = crypto.randomUUID().substring(0, 8);
   const ip = getClientIP(req);
+  const subnet = getIPSubnet(ip);
   const now = Date.now();
   
+  // Initialize email DB
+  await initEmailDB();
+  
   try {
-    logger('info', 'Request received', ip, { requestId });
+    logger('info', 'Request received', ip, { requestId, subnet });
 
     let requestBody;
     try {
@@ -411,22 +563,18 @@ export async function POST(req) {
       );
     }
 
-    // Create composite client key using both client-provided visitorId and server fingerprint
     const serverFingerprint = getServerFingerprint(req);
     const clientVisitorId = requestBody.visitorId || 'unknown';
-    const clientKey = `${ip}:${clientVisitorId}:${serverFingerprint}`;
+    const clientKey = `${subnet}:${clientVisitorId}:${serverFingerprint}`;
     
     logger('debug', 'Client identified', ip, {
       requestId,
       clientKey: clientKey.substring(0, 30) + '...',
-      visitorId: clientVisitorId.substring(0, 8) + '...',
-      serverFp: serverFingerprint
+      subnet
     });
 
-    // Record this request for adaptive CAPTCHA
     recordRequest(clientKey, now);
 
-    // 🚫 Check if shadow banned
     if (shadowBanned.has(clientKey)) {
       logger('info', 'Shadow banned client attempted request', ip, { requestId });
       
@@ -445,8 +593,72 @@ export async function POST(req) {
       );
     }
 
-    // 🎯 ADAPTIVE CAPTCHA CHECK
-    const captchaRequired = shouldRequireCaptcha(clientKey, now);
+    // Early email validation to enable email-based tracking
+    const email = requestBody.email?.toString().trim().toLowerCase();
+    
+    if (!email || !validator.isEmail(email)) {
+      logger('warn', 'Invalid email format', ip, { requestId });
+      return new Response(
+        JSON.stringify({ error: 'Please enter a valid email address.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // EMAIL-BASED RATE LIMITING (cannot be bypassed by profile switching)
+    if (emailBanned.has(email)) {
+      logger('warn', 'Banned email attempted request', ip, {
+        requestId,
+        email: email.substring(0, 5) + '...'
+      });
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Thank you for reaching out! Your message has been sent successfully.' 
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store',
+          }
+        }
+      );
+    }
+
+    const emailLimit = isEmailRateLimited(email, now);
+    if (emailLimit) {
+      logger('warn', 'Email rate limit exceeded', ip, {
+        requestId,
+        email: email.substring(0, 5) + '...',
+        reason: emailLimit.reason,
+        count: emailLimit.count
+      });
+      
+      const message = emailLimit.reason === 'hour' 
+        ? `You've sent ${emailLimit.count} messages in the past hour. Please wait before sending another.`
+        : `You've reached the daily limit of ${EMAIL_LIMITS.MAX_REQUESTS_PER_DAY} messages. Please try again tomorrow.`;
+      
+      return new Response(
+        JSON.stringify({
+          error: message,
+          type: 'email_rate_limit'
+        }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': emailLimit.reason === 'hour' ? '3600' : '86400'
+          }
+        }
+      );
+    }
+
+    // Track this email request
+    trackEmailRequest(email, now);
+    await persistEmailDB(); // Persist immediately to prevent bypass
+
+    const captchaRequired = shouldRequireCaptcha(clientKey, email, now);
     
     if (captchaRequired) {
       const captchaToken = requestBody.captchaToken;
@@ -469,7 +681,6 @@ export async function POST(req) {
         );
       }
       
-      // Verify CAPTCHA
       const verification = await verifyTurnstile(captchaToken, ip);
       
       if (!verification.success) {
@@ -490,12 +701,10 @@ export async function POST(req) {
         );
       }
       
-      // CAPTCHA verified successfully
       recordSuccessfulCaptcha(clientKey, now);
       logger('info', 'CAPTCHA verified, proceeding with request', ip, { requestId });
     }
 
-    // 🧠 BEHAVIORAL RISK SCORING
     const riskAnalysis = calculateRiskScore(req, requestBody, clientKey, now);
     
     logger('debug', 'Risk analysis', ip, {
@@ -504,7 +713,6 @@ export async function POST(req) {
       signals: riskAnalysis.signals
     });
     
-    // High risk score requires CAPTCHA (if not already solved)
     if (riskAnalysis.score > 60 && !requestBody.captchaToken && !captchaRequired) {
       logger('warn', 'High risk score detected', ip, {
         requestId,
@@ -512,10 +720,10 @@ export async function POST(req) {
         signals: riskAnalysis.signals
       });
       
-      // Activate CAPTCHA for this client
       captchaStates.set(clientKey, {
         required: true,
-        activatedAt: now
+        activatedAt: now,
+        reason: 'risk_score'
       });
       
       return new Response(
@@ -548,9 +756,10 @@ export async function POST(req) {
       );
     }
 
-    // 🍯 HONEYPOT CHECK - Instant permanent ban
     if (checkHoneypot(requestBody, ip, requestId)) {
       shadowBanned.add(clientKey);
+      emailBanned.add(email);
+      await persistEmailDB();
       
       return new Response(
         JSON.stringify({ 
@@ -567,9 +776,8 @@ export async function POST(req) {
       );
     }
 
-    const { email, firstName, lastName, subject, message } = requestBody;
+    const { firstName, lastName, subject, message } = requestBody;
 
-    // Validation
     const missingFields = [];
     if (!email) missingFields.push('email');
     if (!firstName) missingFields.push('first name');
@@ -587,7 +795,7 @@ export async function POST(req) {
     }
 
     const trimmedData = {
-      email: email.toString().trim(),
+      email: email,
       firstName: firstName.toString().trim(),
       lastName: lastName.toString().trim(),
       subject: subject ? subject.toString().trim() : '',
@@ -602,7 +810,6 @@ export async function POST(req) {
       );
     }
 
-    // Length validation
     if (trimmedData.firstName.length > 50) {
       return new Response(
         JSON.stringify({ error: 'First name is too long (maximum 50 characters).' }),
@@ -631,10 +838,11 @@ export async function POST(req) {
       );
     }
 
-    // 🚨 SPAM PATTERN DETECTION
     if (detectSpamPatterns(trimmedData.message)) {
       logger('warn', 'Spam pattern detected', ip, { requestId });
       shadowBanned.add(clientKey);
+      emailBanned.add(email);
+      await persistEmailDB();
       
       return new Response(
         JSON.stringify({ 
@@ -651,7 +859,6 @@ export async function POST(req) {
       );
     }
 
-    // Email validation and normalization
     let normalizedEmail;
     try {
       normalizedEmail = validator.normalizeEmail(trimmedData.email);
@@ -675,7 +882,6 @@ export async function POST(req) {
       normalizedEmail = trimmedData.email.toLowerCase();
     }
 
-    // 🔄 PAYLOAD REUSE DETECTION
     if (checkPayloadReuse(normalizedEmail, trimmedData.message, ip, requestId)) {
       logger('warn', 'Excessive payload reuse detected', ip, { requestId });
       
@@ -693,7 +899,6 @@ export async function POST(req) {
       );
     }
 
-    // Sanitization
     let sanitizedData;
     try {
       sanitizedData = {
@@ -736,7 +941,6 @@ export async function POST(req) {
       );
     }
 
-    // Final email validation
     if (!validator.isEmail(sanitizedData.email)) {
       logger('warn', 'Invalid email format after sanitization', ip, {
         requestId,
@@ -748,7 +952,6 @@ export async function POST(req) {
       );
     }
 
-    // Prepare email content
     const emailSubject = sanitizedData.subject 
       ? `New Contact: ${sanitizedData.subject}`
       : `New Contact from ${sanitizedData.firstName} ${sanitizedData.lastName}`;
@@ -820,7 +1023,6 @@ You can reply directly to ${sanitizedData.firstName} by clicking "Reply" in your
 </body>
 </html>`;
 
-    // Send email
     try {
       logger('info', 'Attempting to send email via Space Mail', ip, {
         requestId,

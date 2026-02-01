@@ -6,10 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "csp:validate": "node scripts/validate-csp.js",
-    "csp:test": "NODE_ENV=production npm run build && npm start",
-    "csp:audit": "node scripts/csp-audit.js"
+    "lint": "next lint"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",

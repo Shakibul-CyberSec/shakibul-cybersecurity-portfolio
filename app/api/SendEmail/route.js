@@ -1,12 +1,19 @@
-import createDOMPurify from 'dompurify';
-import { JSDOM } from 'jsdom';
 import validator from 'validator';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 
-// Initialize services
-const window = new JSDOM('').window;
-const DOMPurify = createDOMPurify(window);
+// Initialize services lazily
+let DOMPurify = null;
+
+async function initDOMPurify() {
+  if (!DOMPurify) {
+    const { JSDOM } = await import('jsdom');
+    const createDOMPurify = (await import('dompurify')).default;
+    const window = new JSDOM('').window;
+    DOMPurify = createDOMPurify(window);
+  }
+  return DOMPurify;
+}
 
 // Honeypot fields (names are obfuscated in HTML using different strategy)
 const HONEYPOT_FIELDS = ['company', 'website', 'phone_number'];
@@ -888,23 +895,26 @@ export async function POST(req) {
       );
     }
 
+    // Initialize DOMPurify if not already done
+    const purify = await initDOMPurify();
+
     let sanitizedData;
     try {
       sanitizedData = {
         email: normalizedEmail,
-        firstName: DOMPurify.sanitize(trimmedData.firstName, { 
+        firstName: purify.sanitize(trimmedData.firstName, { 
           ALLOWED_TAGS: [], 
           ALLOWED_ATTR: [] 
         }),
-        lastName: DOMPurify.sanitize(trimmedData.lastName, { 
+        lastName: purify.sanitize(trimmedData.lastName, { 
           ALLOWED_TAGS: [], 
           ALLOWED_ATTR: [] 
         }),
-        subject: DOMPurify.sanitize(trimmedData.subject, { 
+        subject: purify.sanitize(trimmedData.subject, { 
           ALLOWED_TAGS: [], 
           ALLOWED_ATTR: [] 
         }),
-        message: DOMPurify.sanitize(trimmedData.message, { 
+        message: purify.sanitize(trimmedData.message, { 
           ALLOWED_TAGS: ['br', 'p'], 
           ALLOWED_ATTR: [] 
         }),

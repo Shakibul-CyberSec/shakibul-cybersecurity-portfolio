@@ -5,7 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 
 export const metadata = {
-  title: 'Shakibul Bokthiar',
+  title: 'Shakibul-Bokthiar',
   description: 'Professional cybersecurity specialist specializing in web application security, penetration testing, and vulnerability assessment.',
 };
 

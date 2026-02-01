@@ -1,7 +1,34 @@
 import validator from 'validator';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
-import DOMPurify from 'isomorphic-dompurify';
+
+// Simple sanitization function to replace DOMPurify
+const sanitizeInput = (input, options = {}) => {
+  if (!input) return '';
+  
+  let sanitized = String(input);
+  
+  // If no tags allowed, strip all HTML
+  if (!options.ALLOWED_TAGS || options.ALLOWED_TAGS.length === 0) {
+    // Remove all HTML tags
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
+    // Decode common HTML entities
+    sanitized = sanitized
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#x27;/g, "'")
+      .replace(/&#x2F;/g, '/');
+  } else {
+    // Allow only specified tags (br, p)
+    const allowedTags = options.ALLOWED_TAGS.join('|');
+    const tagRegex = new RegExp(`<(?!\\/?(${allowedTags})\\b)[^>]*>`, 'gi');
+    sanitized = sanitized.replace(tagRegex, '');
+  }
+  
+  return sanitized;
+};
 
 // Honeypot fields (names are obfuscated in HTML using different strategy)
 const HONEYPOT_FIELDS = ['company', 'website', 'phone_number'];
@@ -887,19 +914,19 @@ export async function POST(req) {
     try {
       sanitizedData = {
         email: normalizedEmail,
-        firstName: DOMPurify.sanitize(trimmedData.firstName, { 
+        firstName: sanitizeInput(trimmedData.firstName, { 
           ALLOWED_TAGS: [], 
           ALLOWED_ATTR: [] 
         }),
-        lastName: DOMPurify.sanitize(trimmedData.lastName, { 
+        lastName: sanitizeInput(trimmedData.lastName, { 
           ALLOWED_TAGS: [], 
           ALLOWED_ATTR: [] 
         }),
-        subject: DOMPurify.sanitize(trimmedData.subject, { 
+        subject: sanitizeInput(trimmedData.subject, { 
           ALLOWED_TAGS: [], 
           ALLOWED_ATTR: [] 
         }),
-        message: DOMPurify.sanitize(trimmedData.message, { 
+        message: sanitizeInput(trimmedData.message, { 
           ALLOWED_TAGS: ['br', 'p'], 
           ALLOWED_ATTR: [] 
         }),

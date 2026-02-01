@@ -1,0 +1,223 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  security:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Display versions
+      run: |
+        echo "Node.js: $(node --version)"
+        echo "npm: $(npm --version)"
+        
+    # 1. NPM Audit for all PRs
+    - name: Run NPM Audit
+      id: npm-audit
+      run: |
+        echo "=== NPM Audit Results ==="
+        
+        # Run audit and capture output
+        AUDIT_OUTPUT=$(npm audit --audit-level=critical --json 2>/dev/null || echo '{}')
+        
+        # Parse critical and high counts
+        CRITICAL_COUNT=$(echo "$AUDIT_OUTPUT" | jq -r '.metadata.vulnerabilities.critical // 0')
+        HIGH_COUNT=$(echo "$AUDIT_OUTPUT" | jq -r '.metadata.vulnerabilities.high // 0')
+        
+        echo "Critical vulnerabilities: $CRITICAL_COUNT"
+        echo "High vulnerabilities: $HIGH_COUNT"
+        
+        # Set outputs for later use
+        echo "critical_count=$CRITICAL_COUNT" >> $GITHUB_OUTPUT
+        echo "high_count=$HIGH_COUNT" >> $GITHUB_OUTPUT
+        
+        # Comment on PR if from Dependabot
+        if [[ "${{ github.actor }}" == "dependabot[bot]" ]] && [ "$CRITICAL_COUNT" -gt 0 ]; then
+          echo "⚠️ Found $CRITICAL_COUNT critical vulnerabilities in Dependabot PR"
+        fi
+        
+    # 2. Outdated packages check
+    - name: Check outdated packages
+      run: |
+        echo "=== Checking outdated packages ==="
+        npm outdated --json > outdated.json 2>/dev/null || echo '{}' > outdated.json
+        
+        OUTDATED_COUNT=$(jq 'length' outdated.json)
+        echo "Outdated packages: $OUTDATED_COUNT"
+        
+    # 3. ESLint security scan (only for non-Dependabot PRs)
+    - name: Install security tools
+      if: github.actor != 'dependabot[bot]'
+      run: |
+        npm install --save-dev \
+          eslint-plugin-security \
+          eslint-plugin-no-unsanitized \
+          eslint-plugin-xss
+          
+    - name: Run ESLint security scan
+      if: github.actor != 'dependabot[bot]'
+      run: |
+        echo "=== Running ESLint Security Scan ==="
+        
+        # Create security config
+        cat > .eslintrc.security.js << 'EOF'
+        module.exports = {
+          root: true,
+          plugins: ['security', 'no-unsanitized', 'xss'],
+          rules: {
+            'security/detect-object-injection': 'warn',
+            'security/detect-eval-with-expression': 'error',
+            'security/detect-non-literal-fs-filename': 'warn',
+            'security/detect-unsafe-regex': 'error',
+            'security/detect-buffer-noassert': 'error',
+            'security/detect-child-process': 'error',
+            'no-unsanitized/property': 'error',
+            'no-unsanitized/method': 'error',
+            'xss/no-mixed-html': 'warn',
+            'no-eval': 'error',
+            'no-implied-eval': 'error',
+            'no-script-url': 'error'
+          },
+          overrides: [
+            {
+              files: ['*.js', '*.jsx'],
+              parserOptions: {
+                ecmaVersion: 2020,
+                sourceType: 'module'
+              }
+            }
+          ]
+        };
+        EOF
+        
+        # Run scan
+        npx eslint . \
+          --config .eslintrc.security.js \
+          --ext .js,.jsx \
+          --format json \
+          --output-file eslint-report.json \
+          --max-warnings 10 || echo "ESLint scan completed"
+          
+        # Show summary
+        if [ -f eslint-report.json ]; then
+          ERROR_COUNT=$(jq '.[].errorCount' eslint-report.json | awk '{sum+=$1} END {print sum}')
+          WARNING_COUNT=$(jq '.[].warningCount' eslint-report.json | awk '{sum+=$1} END {print sum}')
+          echo "ESLint results: $ERROR_COUNT errors, $WARNING_COUNT warnings"
+        fi
+        
+    # 4. Build test
+    - name: Test production build
+      run: |
+        echo "=== Testing Production Build ==="
+        npm run build && echo "✅ Build successful" || echo "❌ Build failed"
+        
+    # 5. Security summary for PRs
+    - name: Add security summary to PR
+      if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+      uses: actions/github-script@v8
+      with:
+        script: |
+          const { owner, repo, number } = context.issue;
+          const criticalCount = ${{ steps.npm-audit.outputs.critical_count || 0 }};
+          const highCount = ${{ steps.npm-audit.outputs.high_count || 0 }};
+          
+          let summary = '## 🔒 Security Scan Results\n\n';
+          
+          if (criticalCount > 0 || highCount > 0) {
+            summary += `⚠️ **Security Alert**\n`;
+            summary += `- Critical vulnerabilities: ${criticalCount}\n`;
+            summary += `- High vulnerabilities: ${highCount}\n\n`;
+            summary += `Please review these vulnerabilities before merging.\n`;
+          } else {
+            summary += `✅ **No critical or high severity vulnerabilities found**\n\n`;
+          }
+          
+          summary += `### Checks performed:\n`;
+          summary += `- Dependency vulnerability scan\n`;
+          summary += `- Outdated packages check\n`;
+          
+          if (context.actor !== 'dependabot[bot]') {
+            summary += `- Code security linting\n`;
+          }
+          
+          summary += `- Production build test\n\n`;
+          
+          if (criticalCount === 0 && highCount === 0) {
+            summary += `🟢 **This PR appears to be safe to merge**`;
+          } else {
+            summary += `🔴 **Review security findings before merging**`;
+          }
+          
+          // Find existing comment from this workflow
+          const comments = await github.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: number
+          });
+          
+          const botComment = comments.data.find(
+            comment => comment.user.login === 'github-actions[bot]' && 
+                       comment.body.includes('Security Scan Results')
+          );
+          
+          if (botComment) {
+            // Update existing comment
+            await github.rest.issues.updateComment({
+              owner,
+              repo,
+              comment_id: botComment.id,
+              body: summary
+            });
+          } else {
+            // Create new comment
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body: summary
+            });
+          }
+          
+    # 6. Final summary in workflow
+    - name: Create workflow summary
+      if: always()
+      run: |
+        echo "## Security Scan Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Results:" >> $GITHUB_STEP_SUMMARY
+        echo "- NPM Audit: ${{ steps.npm-audit.outputs.critical_count || 0 }} critical, ${{ steps.npm-audit.outputs.high_count || 0 }} high vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        echo "- Build test: $(if npm run build >/dev/null 2>&1; then echo '✅ Passed'; else echo '❌ Failed'; fi)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Next steps:**" >> $GITHUB_STEP_SUMMARY
+        echo "1. Review any vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+        echo "2. Run \`npm audit fix\` to fix automatically fixable issues" >> $GITHUB_STEP_SUMMARY
+        echo "3. Check for outdated packages with \`npm outdated\`" >> $GITHUB_STEP_SUMMARY

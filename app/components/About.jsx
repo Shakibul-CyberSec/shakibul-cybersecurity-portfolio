@@ -1,5 +1,5 @@
 'use client';
-import { FiShield, FiEye, FiTarget, FiLock } from 'react-icons/fi';
+import { FiShield, FiSearch, FiTarget, FiLock } from 'react-icons/fi';
 import { Animate, Stagger, HoverEffect } from './Animations';
 
 const About = () => {
@@ -15,7 +15,7 @@ const About = () => {
       description: 'Simulated cyber attacks to identify and exploit security vulnerabilities before malicious actors can.',
     },
     {
-      icon: <FiEye className="w-8 h-8" />,
+      icon: <FiSearch className="w-8 h-8" />,
       title: 'Vulnerability Assessment',
       description: 'Systematic review of security weaknesses with prioritized remediation recommendations.',
     },
@@ -83,14 +83,18 @@ const About = () => {
           </Animate>
 
           {/* Terminal Window */}
-          <Animate animation="fadeInRight" delay={0.25} duration={1.0} className="terminal-effect cyber-card p-8 hover-terminal">
-            <div className="flex items-center mb-6">
+          <Animate animation="fadeInRight" delay={0.25} duration={1.0} className="terminal-aesthetic cyber-card p-8 hover-terminal">
+            <div className="flex items-center mb-6 pb-4 border-b border-neon-green/20">
               <div className="flex space-x-2 mr-4">
                 <div className="w-3 h-3 rounded-full bg-red-500 terminal-button" />
                 <div className="w-3 h-3 rounded-full bg-yellow-500 terminal-button animation-delay-100" />
                 <div className="w-3 h-3 rounded-full bg-green-500 terminal-button animation-delay-200" />
               </div>
-              <span className="text-neon-green font-mono">engagement.sh</span>
+              <span className="text-neon-green font-mono text-sm">engagement.sh</span>
+              <div className="ml-auto flex items-center space-x-2">
+                <div className="w-2 h-2 rounded-full bg-neon-green animate-pulse-dot"></div>
+                <span className="text-neon-green/60 text-xs font-mono">RUNNING</span>
+              </div>
             </div>
             <pre className="text-sm font-mono text-cyber-gray overflow-x-auto terminal-content leading-relaxed">
 {`$ engage --target web_app --profile offensive
@@ -123,7 +127,7 @@ offensive_security_assessment_2025.pdf`}
             <HoverEffect key={index} effect="lift" className="h-full">
               <div className="cyber-card h-full group skill-card">
                 <div className="relative mb-4">
-                  <div className="text-neon-green transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 icon-float">
+                  <div className="text-neon-green transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 icon-float-continuous">
                     {skill.icon}
                   </div>
                   {/* Corner accent */}

@@ -14,16 +14,16 @@ const Header = () => {
     <section id="home" className="min-h-screen flex items-center justify-center px-4 pt-16">
       <div className="max-w-6xl mx-auto text-center">
         <div className="space-y-8">
-          {/* Badge - Smooth entrance with professional timing */}
-          <Animate animation="scaleIn" delay={0.1}>
+          {/* Badge */}
+          <Animate animation="fadeIn" delay={0.2}>
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-neon-green/10 border border-neon-green/30 hover-glow-subtle">
               <FiShield className="w-4 h-4 text-neon-green mr-2 animate-pulse-dot" />
               <span className="text-neon-green text-sm font-mono">Cybersecurity Professional</span>
             </div>
           </Animate>
 
-          {/* Main Heading - Elegant entrance */}
-          <Animate animation="fadeInUp" delay={0.25}>
+          {/* Main Heading */}
+          <Animate animation="fadeInUp" delay={0.35}>
             <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-heading font-bold leading-tight">
               <span className="text-white">Securing Digital</span>
               <br />
@@ -33,8 +33,8 @@ const Header = () => {
             </h1>
           </Animate>
 
-          {/* Subtitle - Delayed for better flow */}
-          <Animate animation="fadeInUp" delay={0.45}>
+          {/* Subtitle */}
+          <Animate animation="fadeInUp" delay={0.5}>
             <p className="text-xl md:text-2xl text-cyber-gray max-w-3xl mx-auto font-light leading-relaxed">
               Specializing in <span className="text-neon-green font-medium">web application security</span>, 
               <span className="text-neon-cyan font-medium"> penetration testing</span>, and 
@@ -43,8 +43,8 @@ const Header = () => {
             </p>
           </Animate>
 
-          {/* Stats Grid - Staggered with longer delays */}
-          <Stagger stagger={0.12} className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto pt-4">
+          {/* Stats Grid */}
+          <Stagger stagger={0.15} className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto pt-4">
             {[
               { value: '100%', label: 'Security-First Approach', icon: '🛡️' },
               { value: 'In-Depth', label: 'Vulnerability Analysis', icon: '🔍' },
@@ -62,8 +62,8 @@ const Header = () => {
             ))}
           </Stagger>
 
-          {/* CTA Buttons - Final element with appropriate delay */}
-          <Animate animation="fadeInUp" delay={0.7}>
+          {/* CTA Buttons */}
+          <Animate animation="fadeInUp" delay={0.8}>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <a
                 href="#contact"
@@ -86,11 +86,11 @@ const Header = () => {
             </div>
           </Animate>
 
-          {/* Scroll Indicator - Subtle final element */}
-          <Animate animation="fadeIn" delay={0.9}>
-            <div className="pt-16 opacity-70 hover:opacity-100 transition-opacity duration-300">
+          {/* Scroll Indicator - Subtle */}
+          <Animate animation="fadeIn" delay={1.0}>
+            <div className="pt-16 opacity-60 hover:opacity-100 transition-opacity duration-300">
               <div className="text-cyber-gray text-sm font-mono mb-2">Scroll to explore</div>
-              <div className="w-px h-12 bg-gradient-to-b from-neon-green via-neon-cyan to-transparent mx-auto animate-pulse" />
+              <div className="w-px h-12 bg-gradient-to-b from-neon-green via-neon-cyan to-transparent mx-auto animate-pulse-dot" />
             </div>
           </Animate>
         </div>

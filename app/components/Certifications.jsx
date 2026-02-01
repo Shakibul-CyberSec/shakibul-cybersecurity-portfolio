@@ -44,22 +44,24 @@ const Certifications = () => {
   return (
     <section id="certifications" className="py-20 px-4">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <Animate animation="fadeInUp" delay={0.1} className="text-center mb-16">
-          <div className="inline-flex items-center px-4 py-2 rounded-full bg-neon-green/10 border border-neon-green/30 mb-6 hover-glow-subtle">
-            <FiAward className="w-4 h-4 text-neon-green mr-2" />
-            <span className="text-neon-green text-sm font-mono">Credentials</span>
+        {/* Header - Single animation */}
+        <Animate animation="fadeInUp" delay={0.1}>
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-neon-green/10 border border-neon-green/30 mb-6 hover-glow-subtle">
+              <FiAward className="w-4 h-4 text-neon-green mr-2" />
+              <span className="text-neon-green text-sm font-mono">Credentials</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-heading font-bold text-white mb-6">
+              Professional Certifications
+            </h2>
+            <p className="text-xl text-cyber-gray max-w-3xl mx-auto leading-relaxed">
+              Validated expertise through industry-recognized certifications and specialized training.
+            </p>
           </div>
-          <h2 className="text-4xl md:text-5xl font-heading font-bold text-white mb-6">
-            Professional Certifications
-          </h2>
-          <p className="text-xl text-cyber-gray max-w-3xl mx-auto leading-relaxed">
-            Validated expertise through industry-recognized certifications and specialized training.
-          </p>
         </Animate>
 
-        {/* Certifications Grid */}
-        <Stagger stagger={0.18} className="grid md:grid-cols-2 gap-8 mb-16">
+        {/* Certifications Grid - Stagger animation */}
+        <Stagger stagger={0.2} className="grid md:grid-cols-2 gap-8 mb-16">
           {certifications.map((cert) => (
             <div key={cert.id} className="cyber-card group hover-lift">
               <div className="mb-6">
@@ -120,35 +122,31 @@ const Certifications = () => {
           ))}
         </Stagger>
 
-        {/* Continuous Learning */}
-        <Animate animation="fadeInUp" delay={0.4} className="cyber-card hover-lift">
-          <div className="flex items-center mb-8">
-            <div className="w-12 h-12 rounded-full bg-neon-green/10 flex items-center justify-center mr-4">
-              <span className="text-2xl">📚</span>
+        {/* Continuous Learning - Single animation */}
+        <Animate animation="fadeInUp" delay={0.35}>
+          <div className="cyber-card hover-lift">
+            <div className="flex items-center mb-8">
+              <div className="w-12 h-12 rounded-full bg-neon-green/10 flex items-center justify-center mr-4">
+                <span className="text-2xl">📚</span>
+              </div>
+              <h3 className="text-2xl font-bold text-white">Continuous Learning</h3>
             </div>
-            <h3 className="text-2xl font-bold text-white">Continuous Learning</h3>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-4">
-            {continuousLearning.map((topic, index) => (
-              <Animate
-                key={index}
-                animation="fadeInLeft"
-                delay={0.5 + (index * 0.06)}
-              >
-                <div className="flex items-center p-4 rounded-lg bg-cyber-dark border border-cyber-border/50 hover:border-neon-green/30 transition-all duration-300 group cursor-default">
+            
+            <div className="grid md:grid-cols-2 gap-4">
+              {continuousLearning.map((topic, index) => (
+                <div key={index} className="flex items-center p-4 rounded-lg bg-cyber-dark border border-cyber-border/50 hover:border-neon-green/30 transition-all duration-300 group cursor-default">
                   <div className="w-2 h-2 rounded-full bg-neon-green mr-3 animate-pulse-dot" />
                   <span className="text-cyber-gray group-hover:text-white transition-colors duration-300">
                     {topic}
                   </span>
                 </div>
-              </Animate>
-            ))}
+              ))}
+            </div>
           </div>
         </Animate>
       </div>
 
-      {/* Certificate Modal with Image */}
+      {/* Certificate Modal */}
       {selectedCert && (
         <div 
           className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-50 animate-fadeIn backdrop-blur-sm"

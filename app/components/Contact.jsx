@@ -250,18 +250,21 @@ const Contact = () => {
       
       <section id="contact" className="py-20 px-4">
       <div className="max-w-6xl mx-auto">
-        <Animate animation="fadeInUp" delay={0.1} className="text-center mb-16">
-          <div className="inline-flex items-center px-4 py-2 rounded-full bg-neon-green/10 border border-neon-green/30 mb-6 hover-glow-subtle">
-            <FiShield className="w-4 h-4 text-neon-green mr-2" />
-            <span className="text-neon-green text-sm font-mono">Secure Contact</span>
+        {/* Header - Single animation */}
+        <Animate animation="fadeInUp" delay={0.1}>
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-neon-green/10 border border-neon-green/30 mb-6 hover-glow-subtle">
+              <FiShield className="w-4 h-4 text-neon-green mr-2" />
+              <span className="text-neon-green text-sm font-mono">Secure Contact</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-heading font-bold text-white mb-6">
+              Get In Touch
+            </h2>
+            <p className="text-xl text-cyber-gray max-w-3xl mx-auto leading-relaxed">
+              For security consultations, vulnerability reports, or professional inquiries.
+              All communications are encrypted and handled with strict confidentiality.
+            </p>
           </div>
-          <h2 className="text-4xl md:text-5xl font-heading font-bold text-white mb-6">
-            Get In Touch
-          </h2>
-          <p className="text-xl text-cyber-gray max-w-3xl mx-auto leading-relaxed">
-            For security consultations, vulnerability reports, or professional inquiries.
-            All communications are encrypted and handled with strict confidentiality.
-          </p>
         </Animate>
 
         <div className="grid lg:grid-cols-3 gap-8 mb-16">
@@ -503,7 +506,8 @@ const Contact = () => {
           </div>
         </div>
 
-        <Animate animation="fadeInUp" delay={0.4} className="text-center pt-8 border-t border-cyber-border">
+        {/* Footer - NO ANIMATION, completely static */}
+        <div className="text-center pt-8 border-t border-cyber-border">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-cyber-gray mb-4 md:mb-0">
               <div className="text-white font-heading mb-1">Shakibul Bokthiar</div>
@@ -515,7 +519,7 @@ const Contact = () => {
               <div className="text-neon-green font-mono">© 2025</div>
             </div>
           </div>
-        </Animate>
+        </div>
       </div>
     </section>
     </>

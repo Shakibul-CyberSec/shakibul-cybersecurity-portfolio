@@ -8,18 +8,19 @@ const sanitizeInput = (input, options = {}) => {
   
   let sanitized = String(input);
   
-  // If no tags allowed, strip all HTML
+  // ALWAYS decode entities first (for consistency across all fields)
+  sanitized = sanitized
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/');
+  
+  // Then strip tags based on allowed list
   if (!options.ALLOWED_TAGS || options.ALLOWED_TAGS.length === 0) {
     // Remove all HTML tags
     sanitized = sanitized.replace(/<[^>]*>/g, '');
-    // Decode common HTML entities
-    sanitized = sanitized
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/&quot;/g, '"')
-      .replace(/&#x27;/g, "'")
-      .replace(/&#x2F;/g, '/');
   } else {
     // Allow only specified tags (br, p)
     const allowedTags = options.ALLOWED_TAGS.join('|');

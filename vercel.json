@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "toolbarEnabled": false
+  "env": {
+    "NEXT_PUBLIC_VERCEL_TOOLBAR_ENABLED": "0"
+  }
 }
-

@@ -447,11 +447,11 @@ export async function proxy(request) {
   /* ---------- Strict CSP Header with Nonce ---------- */
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js https://challenges.cloudflare.com/turnstile/v0/api.js;
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com/turnstile/v0/api.js;
     style-src 'self' 'nonce-${nonce}';
     font-src 'self' data:;
     img-src 'self' data: blob:;
-    connect-src 'self' https://api.fingerprint.com https://challenges.cloudflare.com;
+    connect-src 'self' https://challenges.cloudflare.com;
     frame-src https://challenges.cloudflare.com;
     frame-ancestors 'none';
     base-uri 'none';
@@ -483,7 +483,7 @@ export async function proxy(request) {
 
 /* ---------- Routes ---------- */
 export const config = {
-  routes: ['/((?!_next/static|_next/image|favicon.ico|cyber-icon.svg).*)'],
+  routes: ['/((?!_next/static|_next/image|favicon.ico|cyber-icon.svg|u\\.js).*)'],
 };
 
 

@@ -35,9 +35,7 @@ const Contact = () => {
           const fp = await window.FingerprintJS.load();
           const result = await fp.get();
           setVisitorId(result.visitorId);
-          console.log('🔒 Device fingerprint initialized:', result.visitorId.substring(0, 8) + '...');
         } catch (error) {
-          console.error('❌ Fingerprint initialization failed:', error);
           setVisitorId('fallback-' + Math.random().toString(36).substring(7));
         }
       };
@@ -53,15 +51,12 @@ const Contact = () => {
         turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
           sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
           callback: (token) => {
-            console.log('✅ CAPTCHA solved');
             setCaptchaToken(token);
           },
           'error-callback': () => {
-            console.error('❌ CAPTCHA error');
             setCaptchaToken(null);
           },
           'expired-callback': () => {
-            console.warn('⏰ CAPTCHA expired');
             setCaptchaToken(null);
           },
           theme: 'dark',
@@ -235,7 +230,7 @@ const Contact = () => {
   return (
     <>
       <Script
-        src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"
+        src="/u.js"
         strategy="lazyOnload"
         onLoad={() => setFingerprintLoaded(true)}
       />

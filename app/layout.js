@@ -1,8 +1,6 @@
 import './globals.css';
 import { headers } from 'next/headers';
 import NonceScript from './components/NonceScript';
-import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Analytics } from "@vercel/analytics/next";
 
 export const metadata = {
   title: 'Shakibul-Bokthiar',
@@ -41,8 +39,6 @@ export default async function RootLayout({ children }) {
         <div className="relative z-10">
           {children}
         </div>
-        <SpeedInsights />
-        <Analytics />
       </body>
     </html>
   );

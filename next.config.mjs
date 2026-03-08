@@ -60,11 +60,11 @@ const nextConfig = {
   compress: true,
   
   
-  // Compiler options for CSP and production optimization
+  // Compiler options for production optimization
   compiler: {
-    // Remove React DevTools and properties in production
-    reactRemoveProperties: process.env.NODE_ENV === 'production' ? { 
-      properties: ['^data-testid$'] 
+    // Remove React/Next.js fingerprinting attributes in production
+    reactRemoveProperties: process.env.NODE_ENV === 'production' ? {
+      properties: ['^data-testid$', '^data-nextjs', '^data-nscript']
     } : false,
   },
   

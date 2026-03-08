@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "env": {
+    "VERCEL_TOOLBAR_ENABLED": "0",
     "NEXT_PUBLIC_VERCEL_TOOLBAR_ENABLED": "0"
   }
 }

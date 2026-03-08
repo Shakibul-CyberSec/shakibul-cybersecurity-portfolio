@@ -32,6 +32,23 @@ export default async function RootLayout({ children }) {
             `}
           </style>
         )}
+        {/* Block Vercel toolbar injections before they cause CSP errors */}
+        {nonce && (
+          <script nonce={nonce} dangerouslySetInnerHTML={{ __html: `
+            new MutationObserver(function(m,o){
+              m.forEach(function(r){
+                r.addedNodes.forEach(function(n){
+                  if(n.nodeType!==1)return;
+                  var s=n.getAttribute&&n.getAttribute('src')||'';
+                  if(s.indexOf('vercel.live')>-1||s.indexOf('feedback')>-1||
+                     (n.tagName==='IFRAME'&&s.indexOf('vercel')>-1)){
+                    n.remove();
+                  }
+                });
+              });
+            }).observe(document.documentElement,{childList:true,subtree:true});
+          `}} />
+        )}
       </head>
       <body className="antialiased" suppressHydrationWarning>
         <NonceScript nonce={nonce} />

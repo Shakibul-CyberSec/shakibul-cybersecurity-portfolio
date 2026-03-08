@@ -464,6 +464,12 @@ section {
 .w-\[90\%\] { width: 90%; }
 .w-\[95\%\] { width: 95%; }
 
+/* ===== PROGRESS BAR ===== */
+.progress-bar-fill {
+  width: 0%;
+  transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* ===== ACCESSIBILITY ===== */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -20,7 +20,7 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(), usb=(), bluetooth=(), serial=(), hid=(), browsing-topics=()'
+            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(), usb=(), serial=(), hid=(), browsing-topics=()'
           },
           {
             key: 'Cross-Origin-Opener-Policy',

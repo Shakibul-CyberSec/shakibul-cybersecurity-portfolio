@@ -29,7 +29,7 @@ const About = () => {
   return (
     <section id="about" className="py-20 px-4 relative overflow-hidden">
       {/* Animated background grid - promoted to own layer */}
-      <div className="absolute inset-0 cyber-grid opacity-20 pointer-events-none" style={{ transform: 'translateZ(0)' }} />
+      <div className="absolute inset-0 cyber-grid opacity-20 pointer-events-none gpu-accelerate" />
 
       <div className="max-w-6xl mx-auto relative z-10">
         {/* Header */}

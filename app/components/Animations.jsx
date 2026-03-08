@@ -203,6 +203,18 @@ export function ProgressBar({
     return () => cancelAnimationFrame(rafId);
   }, [isVisible, percentage]);
 
+  const barRef = useRef(null);
+
+  // Animate bar width via DOM to avoid inline style CSP violation
+  useEffect(() => {
+    if (!barRef.current) return;
+    if (isVisible) {
+      barRef.current.style.width = `${percentage}%`;
+    } else {
+      barRef.current.style.width = '0%';
+    }
+  }, [isVisible, percentage]);
+
   return (
     <div ref={ref} className={`space-y-2 ${className}`} {...props}>
       <div className="flex justify-between items-center">
@@ -214,11 +226,8 @@ export function ProgressBar({
 
       <div className="h-2 bg-cyber-border/30 rounded-full overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-neon-green to-neon-cyan rounded-full"
-          style={{
-            width: isVisible ? `${percentage}%` : '0%',
-            transition: 'width 1.2s cubic-bezier(0.16, 1, 0.3, 1)',
-          }}
+          ref={barRef}
+          className="h-full bg-gradient-to-r from-neon-green to-neon-cyan rounded-full progress-bar-fill"
         />
       </div>
     </div>

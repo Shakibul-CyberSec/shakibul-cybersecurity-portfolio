@@ -47,7 +47,7 @@ async function kvGet(key) {
     // Fallback to memory
     return memoryCache.get(key) || null;
   }
-  
+
   try {
     return await kv.get(key);
   } catch (error) {
@@ -62,7 +62,7 @@ async function kvSet(key, value, expirySeconds = null) {
     memoryCache.set(key, value);
     return;
   }
-  
+
   try {
     if (expirySeconds) {
       await kv.set(key, value, { ex: expirySeconds });
@@ -82,7 +82,7 @@ async function kvSadd(key, member) {
     shadowBanned.add(member);
     return;
   }
-  
+
   try {
     await kv.sadd(key, member);
     shadowBanned.add(member);
@@ -96,7 +96,7 @@ async function kvSismember(key, member) {
   if (!kvAvailable || !kv) {
     return shadowBanned.has(member);
   }
-  
+
   try {
     const isMember = await kv.sismember(key, member);
     if (isMember) shadowBanned.add(member);
@@ -122,19 +122,19 @@ function isBotUserAgent(ua) {
 /* ---------- IP SUBNET EXTRACTION ---------- */
 function getIPSubnet(ip) {
   if (!ip || ip === 'unknown') return 'unknown';
-  
+
   // IPv4: Get first 3 octets (e.g., 103.157.247.x -> 103.157.247)
   const ipv4Match = ip.match(/^(\d+\.\d+\.\d+)\.\d+$/);
   if (ipv4Match) {
     return ipv4Match[1];
   }
-  
+
   // IPv6: Get first 48 bits
   const ipv6Match = ip.match(/^([0-9a-f:]+::[0-9a-f:]+|[0-9a-f:]+:[0-9a-f:]+:[0-9a-f:]+)/i);
   if (ipv6Match) {
     return ipv6Match[1];
   }
-  
+
   return ip;
 }
 
@@ -145,7 +145,7 @@ async function getFingerprint(request) {
   const encoding = request.headers.get('accept-encoding') || '';
   const secChUa = request.headers.get('sec-ch-ua') || '';
   const secChUaPlatform = request.headers.get('sec-ch-ua-platform') || '';
-  
+
   const data = `${ua}|${lang}|${encoding}|${secChUa}|${secChUaPlatform}`;
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(data);
@@ -169,39 +169,39 @@ function getClientIP(request) {
 /* ---------- RATE LIMIT TIER MANAGEMENT ---------- */
 async function getViolationTier(clientKey) {
   const violations = await kvGet(KV_PREFIXES.VIOLATION + clientKey);
-  
+
   if (!violations) {
     return 'NORMAL';
   }
-  
+
   // Reset tier if cooldown period has passed
   if (Date.now() - violations.lastViolation > COOLDOWN_PERIOD) {
     return 'NORMAL';
   }
-  
+
   if (violations.count >= ESCALATION_THRESHOLD * 2) {
     return 'ABUSIVE';
   }
-  
+
   if (violations.count >= ESCALATION_THRESHOLD) {
     return 'SUSPICIOUS';
   }
-  
+
   return 'NORMAL';
 }
 
 async function recordViolation(clientKey, subnetKey) {
   const now = Date.now();
-  
+
   // Record violation for both specific client and subnet
   for (const key of [clientKey, subnetKey]) {
     const violations = await kvGet(KV_PREFIXES.VIOLATION + key) || { count: 0, lastViolation: 0 };
     violations.count++;
     violations.lastViolation = now;
-    
+
     // Store with 48 hour expiry
     await kvSet(KV_PREFIXES.VIOLATION + key, violations, 48 * 60 * 60);
-    
+
     // Shadow ban if violations are extreme
     if (violations.count >= ESCALATION_THRESHOLD * 3) {
       await kvSadd(KV_PREFIXES.SHADOW_BAN + 'set', key);
@@ -213,13 +213,13 @@ async function recordViolation(clientKey, subnetKey) {
 /* ---------- BEHAVIORAL ANALYSIS ---------- */
 async function checkBehavior(clientKey, now) {
   const record = await kvGet(KV_PREFIXES.RATE_LIMIT + clientKey);
-  
+
   if (!record || !record.lastRequest) {
     return true; // First request
   }
-  
+
   const timeDiff = now - record.lastRequest;
-  
+
   // Suspicious: Requests faster than humanly possible (< 800ms)
   return timeDiff >= 800;
 }
@@ -230,20 +230,20 @@ async function getSubnetRequests(subnet, now, window) {
     // Fallback to in-memory
     let totalRequests = 0;
     for (const [key, record] of memoryCache.entries()) {
-      if (key.startsWith(KV_PREFIXES.RATE_LIMIT) && 
-          key.includes(subnet + ':') && 
+      if (key.startsWith(KV_PREFIXES.RATE_LIMIT) &&
+          key.includes(subnet + ':') &&
           (now - record.start < window)) {
         totalRequests += record.count;
       }
     }
     return totalRequests;
   }
-  
+
   try {
     // Get all keys for this subnet
     const pattern = `${KV_PREFIXES.RATE_LIMIT}${subnet}:*`;
     const keys = await kv.keys(pattern);
-    
+
     let totalRequests = 0;
     for (const key of keys) {
       const record = await kv.get(key);
@@ -251,7 +251,7 @@ async function getSubnetRequests(subnet, now, window) {
         totalRequests += record.count;
       }
     }
-    
+
     return totalRequests;
   } catch (error) {
     console.error('[KV Error] Subnet check failed:', error.message);
@@ -262,10 +262,10 @@ async function getSubnetRequests(subnet, now, window) {
 /* ---------- MEMORY CLEANUP (for fallback only) ---------- */
 function cleanupMemory() {
   if (kvAvailable) return; // Skip if using KV
-  
+
   const now = Date.now();
   const maxAge = Math.max(...Object.values(RATE_LIMITS).map(l => l.window));
-  
+
   for (const [key, record] of memoryCache.entries()) {
     if (now - record.start > maxAge * 2) {
       memoryCache.delete(key);
@@ -276,39 +276,39 @@ function cleanupMemory() {
 // Run cleanup every 10 minutes (only for fallback)
 setInterval(cleanupMemory, 10 * 60 * 1000);
 
-/* ---------- Middleware ---------- */
-export async function middleware(request) {
+/* ---------- Proxy ---------- */
+export async function proxy(request) {
   const pathname = request.nextUrl.pathname;
-  
+
   /* 🔒 RATE LIMIT FOR /api/SendEmail */
   if (pathname === '/api/SendEmail') {
     const ip = getClientIP(request);
     const subnet = getIPSubnet(ip);
     const fingerprint = await getFingerprint(request);
     const method = request.method;
-    
+
     // Multi-dimensional keys
     const clientKey = `${subnet}:${fingerprint}:${method}`;
     const subnetKey = `subnet:${subnet}:${method}`;
-    
+
     /* ---------- BOT DETECTION ---------- */
     const ua = request.headers.get('user-agent') || '';
     if (isBotUserAgent(ua)) {
       console.log(`[Security] Bot detected: ${ua.substring(0, 50)}`);
-      return new NextResponse(null, { 
+      return new NextResponse(null, {
         status: 204,
         headers: { 'Cache-Control': 'no-store' }
       });
     }
-    
+
     /* ---------- SHADOW BAN CHECK (PERSISTENT) ---------- */
     const isClientBanned = await kvSismember(KV_PREFIXES.SHADOW_BAN + 'set', clientKey);
     const isSubnetBanned = await kvSismember(KV_PREFIXES.SHADOW_BAN + 'set', subnetKey);
-    
+
     if (isClientBanned || isSubnetBanned) {
       console.log(`[Security] Shadow banned request (persistent) from ${subnet}`);
       return new NextResponse(
-        JSON.stringify({ 
+        JSON.stringify({
           success: true,
           message: 'Thank you for reaching out! Your message has been sent successfully.'
         }),
@@ -321,13 +321,13 @@ export async function middleware(request) {
         }
       );
     }
-    
+
     const now = Date.now();
-    
+
     /* ---------- BEHAVIORAL ANALYSIS ---------- */
     if (!(await checkBehavior(clientKey, now))) {
       await recordViolation(clientKey, subnetKey);
-      
+
       return new NextResponse(
         JSON.stringify({
           error: 'Request rejected. Please slow down.',
@@ -342,45 +342,45 @@ export async function middleware(request) {
         }
       );
     }
-    
+
     /* ---------- PROGRESSIVE RATE LIMITING (PERSISTENT) ---------- */
     const tier = await getViolationTier(clientKey);
     const subnetTier = await getViolationTier(subnetKey);
     const effectiveTier = RATE_LIMITS[subnetTier].window > RATE_LIMITS[tier].window ? subnetTier : tier;
     const limit = RATE_LIMITS[effectiveTier];
-    
-    const record = await kvGet(KV_PREFIXES.RATE_LIMIT + clientKey) || { 
-      count: 0, 
-      start: now, 
+
+    const record = await kvGet(KV_PREFIXES.RATE_LIMIT + clientKey) || {
+      count: 0,
+      start: now,
       lastRequest: 0,
-      tier: effectiveTier 
+      tier: effectiveTier
     };
-    
+
     // Reset count if window has passed
     if (now - record.start > limit.window) {
       record.count = 0;
       record.start = now;
       record.tier = effectiveTier;
     }
-    
+
     record.count++;
     record.lastRequest = now;
-    
+
     // Store with expiry based on rate limit window
     const expirySeconds = Math.ceil(limit.window / 1000);
     await kvSet(KV_PREFIXES.RATE_LIMIT + clientKey, record, expirySeconds);
-    
+
     // SUBNET-WIDE CHECK: Prevent circumvention via profile switching (PERSISTENT)
     const subnetRequests = await getSubnetRequests(subnet, now, limit.window);
     const SUBNET_MULTIPLIER = 3; // Allow 3x normal limit across all profiles from same subnet
-    
+
     if (subnetRequests > limit.count * SUBNET_MULTIPLIER) {
       await recordViolation(clientKey, subnetKey);
-      
+
       const retryAfter = Math.ceil((record.start + limit.window - now) / 1000);
-      
+
       console.log(`[Security] Subnet limit exceeded (persistent): ${subnet} (${subnetRequests} requests)`);
-      
+
       return new NextResponse(
         JSON.stringify({
           error: 'Too many requests from your network. Please try again later.',
@@ -396,14 +396,14 @@ export async function middleware(request) {
         }
       );
     }
-    
+
     // Block if rate limit exceeded
     if (record.count > limit.count) {
       await recordViolation(clientKey, subnetKey);
-      
+
       const retryAfter = Math.ceil((record.start + limit.window - now) / 1000);
       const minutes = Math.ceil(retryAfter / 60);
-      
+
       // Different messages based on tier
       let errorMessage;
       switch (effectiveTier) {
@@ -416,9 +416,9 @@ export async function middleware(request) {
         default:
           errorMessage = `Too many requests. Please try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`;
       }
-      
+
       console.log(`[Security] Rate limit exceeded (persistent): ${clientKey.substring(0, 30)}... (Tier: ${effectiveTier})`);
-      
+
       return new NextResponse(
         JSON.stringify({
           error: errorMessage,
@@ -436,14 +436,14 @@ export async function middleware(request) {
       );
     }
   }
-  
+
   /* ---------- Generate Nonce ---------- */
   const nonceArray = new Uint8Array(16);
   crypto.getRandomValues(nonceArray);
   const nonce = Array.from(nonceArray, byte => byte.toString(16).padStart(2, '0')).join('');
-  
+
   const response = NextResponse.next();
-  
+
   /* ---------- Strict CSP Header with Nonce ---------- */
   const cspHeader = `
     default-src 'self';
@@ -461,10 +461,10 @@ export async function middleware(request) {
     .replace(/\n/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-    
+
   response.headers.set('Content-Security-Policy', cspHeader);
   response.headers.set('x-nonce', nonce);
-  
+
   /* ---------- Security Headers ---------- */
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -477,11 +477,13 @@ export async function middleware(request) {
       'max-age=31536000; includeSubDomains; preload'
     );
   }
-  
+
   return response;
 }
 
-/* ---------- Matcher ---------- */
+/* ---------- Routes ---------- */
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|cyber-icon.svg).*)'],
+  routes: ['/((?!_next/static|_next/image|favicon.ico|cyber-icon.svg).*)'],
 };
+
+

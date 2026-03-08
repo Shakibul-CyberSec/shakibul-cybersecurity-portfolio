@@ -59,7 +59,10 @@ const nextConfig = {
   // Compress responses
   compress: true,
   
-  
+  // Disable Vercel toolbar on preview deployments
+  // (it injects inline styles and iframes that violate strict CSP)
+  devIndicators: false,
+
   // Compiler options for production optimization
   compiler: {
     // Remove React/Next.js fingerprinting attributes in production

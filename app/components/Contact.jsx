@@ -100,11 +100,6 @@ const Contact = () => {
         timestamp: Date.now()
       };
 
-      console.log('📤 Submitting form...', {
-        visitorId: visitorId?.substring(0, 8) + '...',
-        timeOnPage: `${(timeOnPage / 1000).toFixed(1)}s`,
-        hasCaptcha: !!captchaToken
-      });
 
       const response = await fetch('/api/SendEmail', {
         method: 'POST',

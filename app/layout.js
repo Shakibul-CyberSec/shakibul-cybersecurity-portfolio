@@ -37,7 +37,7 @@ export default async function RootLayout({ children }) {
       </head>
       <body className="antialiased" suppressHydrationWarning>
         <NonceScript nonce={nonce} />
-        <div className="fixed inset-0 bg-gradient-to-br from-cyber-dark via-black to-cyber-dark pointer-events-none" />
+        <div className="fixed inset-0 bg-gradient-to-br from-cyber-dark via-black to-cyber-dark pointer-events-none" style={{ willChange: 'transform', transform: 'translateZ(0)' }} />
         <div className="relative z-10">
           {children}
         </div>

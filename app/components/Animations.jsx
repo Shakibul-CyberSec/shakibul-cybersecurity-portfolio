@@ -32,22 +32,22 @@ export function Animate({
       return;
     }
 
+    if (hasAnimated) return;
+
     const element = ref.current;
     if (!element) return;
     
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !hasAnimated) {
-          requestAnimationFrame(() => {
-            setIsVisible(true);
-            setHasAnimated(true);
-          });
-          if (once) observer.disconnect();
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          setHasAnimated(true);
+          observer.disconnect();
         }
       },
       { 
         threshold,
-        rootMargin: '0px 0px -80px 0px'
+        rootMargin: '0px 0px -50px 0px'
       }
     );
     
@@ -98,19 +98,19 @@ export function Stagger({
       return;
     }
 
+    if (hasAnimated) return;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !hasAnimated) {
-          requestAnimationFrame(() => {
-            setIsVisible(true);
-            setHasAnimated(true);
-          });
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          setHasAnimated(true);
           observer.disconnect();
         }
       },
       { 
         threshold: 0.1,
-        rootMargin: '0px 0px -60px 0px'
+        rootMargin: '0px 0px -40px 0px'
       }
     );
     
@@ -157,15 +157,16 @@ export function ProgressBar({
   const ref = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   const [hasAnimated, setHasAnimated] = useState(false);
-  
+  const [displayPercent, setDisplayPercent] = useState(0);
+
   useEffect(() => {
+    if (hasAnimated) return;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !hasAnimated) {
-          requestAnimationFrame(() => {
-            setIsVisible(true);
-            setHasAnimated(true);
-          });
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          setHasAnimated(true);
           observer.disconnect();
         }
       },
@@ -175,21 +176,49 @@ export function ProgressBar({
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, [hasAnimated]);
-  
-  const widthClass = getWidthClass(percentage);
-  
+
+  // Animate the percentage number counting up
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const duration = 1200; // match bar fill duration
+    const startTime = performance.now();
+    let rafId;
+
+    const animate = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease-out curve for natural deceleration
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(eased * percentage);
+
+      setDisplayPercent(current);
+
+      if (progress < 1) {
+        rafId = requestAnimationFrame(animate);
+      }
+    };
+
+    rafId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafId);
+  }, [isVisible, percentage]);
+
   return (
     <div ref={ref} className={`space-y-2 ${className}`} {...props}>
       <div className="flex justify-between items-center">
         <span className="text-white font-medium">{label}</span>
-        <span className="text-neon-green font-mono text-sm">{percentage}%</span>
+        <span className="text-neon-green font-mono text-sm tabular-nums">
+          {displayPercent}%
+        </span>
       </div>
 
       <div className="h-2 bg-cyber-border/30 rounded-full overflow-hidden">
         <div
-          className={`h-full bg-gradient-to-r from-neon-green to-neon-cyan rounded-full transition-all duration-1200 ease-out ${
-            isVisible ? widthClass : 'w-0'
-          }`}
+          className="h-full bg-gradient-to-r from-neon-green to-neon-cyan rounded-full"
+          style={{
+            width: isVisible ? `${percentage}%` : '0%',
+            transition: 'width 1.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
         />
       </div>
     </div>
@@ -229,15 +258,4 @@ function getDelayClass(delayMs) {
 function getStaggerClass(index) {
   if (index <= 10) return `animate-stagger-${index}`;
   return 'animate-stagger-10';
-}
-
-function getWidthClass(percentage) {
-  if (percentage >= 95) return 'w-[95%]';
-  if (percentage >= 90) return 'w-[90%]';
-  if (percentage >= 85) return 'w-[85%]';
-  if (percentage >= 80) return 'w-[80%]';
-  if (percentage >= 75) return 'w-[75%]';
-  if (percentage >= 70) return 'w-[70%]';
-  if (percentage >= 65) return 'w-[65%]';
-  return 'w-full';
 }

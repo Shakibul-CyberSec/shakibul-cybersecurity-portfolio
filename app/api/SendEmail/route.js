@@ -2,32 +2,32 @@ import validator from 'validator';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 
-// Simple sanitization function to replace DOMPurify
+// Secure sanitization function — strips tags first, then attributes
 const sanitizeInput = (input, options = {}) => {
   if (!input) return '';
   
   let sanitized = String(input);
   
-  // ALWAYS decode entities first (for consistency across all fields)
-  sanitized = sanitized
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, '/');
-  
-  // Then strip tags based on allowed list
   if (!options.ALLOWED_TAGS || options.ALLOWED_TAGS.length === 0) {
-    // Remove all HTML tags
+    // Remove ALL HTML tags (no tags allowed)
     sanitized = sanitized.replace(/<[^>]*>/g, '');
   } else {
-    // Allow only specified tags (br, p)
+    // Step 1: Remove all tags NOT in the allowed list
     const allowedTags = options.ALLOWED_TAGS.join('|');
-    const tagRegex = new RegExp(`<(?!\\/?(${allowedTags})\\b)[^>]*>`, 'gi');
-    sanitized = sanitized.replace(tagRegex, '');
+    const disallowedTagRegex = new RegExp(`<(?!\\/?(${allowedTags})\\b)[^>]*>`, 'gi');
+    sanitized = sanitized.replace(disallowedTagRegex, '');
+
+    // Step 2: Strip ALL attributes from the remaining allowed tags
+    // This prevents event handler injection like <p onclick=alert(1)>
+    const attrStripRegex = new RegExp(`<(\\/?(?:${allowedTags}))\\s[^>]*>`, 'gi');
+    sanitized = sanitized.replace(attrStripRegex, '<$1>');
   }
-  
+
+  // Encode any remaining dangerous characters that aren't part of allowed tags
+  sanitized = sanitized
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '');
+
   return sanitized;
 };
 
@@ -485,7 +485,7 @@ const verifyTurnstile = async (token, ip) => {
   }
 };
 
-const calculateRiskScore = (req, requestBody, clientKey, now) => {
+const calculateRiskScore = (req, requestBody, clientKey) => {
   let score = 0;
   const signals = [];
   
@@ -495,7 +495,6 @@ const calculateRiskScore = (req, requestBody, clientKey, now) => {
     signals.push(`fast_fill:${timeOnPage}ms`);
   }
   
-  const serverFingerprint = getServerFingerprint(req);
   const clientVisitorId = requestBody.visitorId;
   
   if (!clientVisitorId) {
@@ -719,8 +718,8 @@ export async function POST(req) {
       logger('info', 'CAPTCHA verified, proceeding with request', ip, { requestId });
     }
 
-    const riskAnalysis = calculateRiskScore(req, requestBody, clientKey, now);
-    
+    const riskAnalysis = calculateRiskScore(req, requestBody, clientKey);
+
     logger('debug', 'Risk analysis', ip, {
       requestId,
       score: riskAnalysis.score,
@@ -984,7 +983,7 @@ You can reply directly to ${sanitizedData.firstName} by clicking "Reply" in your
 
     const htmlContent = `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1056,8 +1055,6 @@ You can reply directly to ${sanitizedData.firstName} by clicking "Reply" in your
           'X-Priority': '3',
           'X-Mailer': 'Node.js/Nodemailer',
           'X-Request-ID': requestId,
-          'X-Mail-Service': 'SpaceMail',
-          'X-Client-Key': clientKey.substring(0, 20)
         }
       };
 
@@ -1096,7 +1093,7 @@ You can reply directly to ${sanitizedData.firstName} by clicking "Reply" in your
       return new Response(
         JSON.stringify({ 
           error: errorMessage,
-          details: process.env.NODE_ENV === 'development' ? emailError.message : undefined
+          ...(process.env.NODE_ENV === 'development' ? { details: emailError.message } : {})
         }),
         { 
           status: 500,
@@ -1128,7 +1125,7 @@ You can reply directly to ${sanitizedData.firstName} by clicking "Reply" in your
     return new Response(
       JSON.stringify({ 
         error: 'An unexpected error occurred. Please try again later.',
-        requestId: process.env.NODE_ENV === 'development' ? requestId : undefined
+        ...(process.env.NODE_ENV === 'development' ? { requestId } : {})
       }),
       { 
         status: 500,

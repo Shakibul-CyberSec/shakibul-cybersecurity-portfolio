@@ -45,7 +45,7 @@ const Certifications = () => {
     <section id="certifications" className="py-20 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Header - Single animation */}
-        <Animate animation="fadeInUp" delay={0.1}>
+        <Animate animation="fadeInUp">
           <div className="text-center mb-16">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-neon-green/10 border border-neon-green/30 mb-6 hover-glow-subtle">
               <FiAward className="w-4 h-4 text-neon-green mr-2" />
@@ -61,7 +61,7 @@ const Certifications = () => {
         </Animate>
 
         {/* Certifications Grid - Stagger animation */}
-        <Stagger stagger={0.2} className="grid md:grid-cols-2 gap-8 mb-16">
+        <Stagger stagger={0.12} className="grid md:grid-cols-2 gap-8 mb-16">
           {certifications.map((cert) => (
             <div key={cert.id} className="cyber-card group hover-lift">
               <div className="mb-6">
@@ -123,7 +123,7 @@ const Certifications = () => {
         </Stagger>
 
         {/* Continuous Learning - Single animation */}
-        <Animate animation="fadeInUp" delay={0.35}>
+        <Animate animation="fadeInUp">
           <div className="cyber-card hover-lift">
             <div className="flex items-center mb-8">
               <div className="w-12 h-12 rounded-full bg-neon-green/10 flex items-center justify-center mr-4">

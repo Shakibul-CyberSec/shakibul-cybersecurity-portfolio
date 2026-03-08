@@ -15,20 +15,31 @@
   .gpu-accelerate {
     transform: translateZ(0);
     backface-visibility: hidden;
-    perspective: 1000px;
-  }
-  
-  html {
-    scroll-behavior: smooth;
   }
 }
 
+/* Smooth scroll only for anchor clicks, not during general scrolling */
+html {
+  scroll-behavior: auto;
+}
+
+/* Promote fixed/sticky elements to their own layer */
+nav[class*="fixed"] {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Reduce paint areas for sections */
+section {
+  contain: layout style paint;
+}
+
 /* ===== IMPACTFUL ANIMATION KEYFRAMES ===== */
-/* More visible movements for better user experience */
+/* Subtle yet visible — professional portfolio feel */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translate3d(0, 40px, 0);
+    transform: translate3d(0, 24px, 0);
   }
   to {
     opacity: 1;
@@ -39,7 +50,7 @@
 @keyframes fadeInDown {
   from {
     opacity: 0;
-    transform: translate3d(0, -40px, 0);
+    transform: translate3d(0, -24px, 0);
   }
   to {
     opacity: 1;
@@ -50,7 +61,7 @@
 @keyframes fadeInLeft {
   from {
     opacity: 0;
-    transform: translate3d(-40px, 0, 0);
+    transform: translate3d(-30px, 0, 0);
   }
   to {
     opacity: 1;
@@ -61,7 +72,7 @@
 @keyframes fadeInRight {
   from {
     opacity: 0;
-    transform: translate3d(40px, 0, 0);
+    transform: translate3d(30px, 0, 0);
   }
   to {
     opacity: 1;
@@ -81,7 +92,7 @@
 @keyframes scaleIn {
   from {
     opacity: 0;
-    transform: scale3d(0.9, 0.9, 1);
+    transform: scale3d(0.96, 0.96, 1);
   }
   to {
     opacity: 1;
@@ -92,7 +103,7 @@
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translate3d(0, 50px, 0);
+    transform: translate3d(0, 32px, 0);
   }
   to {
     opacity: 1;
@@ -103,45 +114,53 @@
 /* ===== CONTINUOUS ICON FLOAT ANIMATION ===== */
 @keyframes iconFloatContinuous {
   0%, 100% {
-    transform: translateY(0px);
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translate3d(0, -6px, 0);
   }
 }
 
 .icon-float-continuous {
   animation: iconFloatContinuous 3s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Disable continuous animations on mobile for better performance */
+@media (max-width: 768px) {
+  .icon-float-continuous {
+    animation: none;
+  }
 }
 
 /* ===== ANIMATION CLASSES ===== */
-/* Visible, smooth timing: 0.7-0.9s with smooth easing */
+/* Clean, professional timing with consistent easing */
 .animate-fadeInUp {
-  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-fadeInDown {
-  animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-fadeInLeft {
-  animation: fadeInLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeInLeft 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-fadeInRight {
-  animation: fadeInRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeInRight 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-scaleIn {
-  animation: scaleIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-slideUp {
-  animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: slideUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Initial state for elements waiting to animate */
@@ -150,28 +169,28 @@
 }
 
 /* ===== STAGGER DELAYS ===== */
-.animate-stagger-1 { animation-delay: 0.15s; }
-.animate-stagger-2 { animation-delay: 0.3s; }
-.animate-stagger-3 { animation-delay: 0.45s; }
-.animate-stagger-4 { animation-delay: 0.6s; }
-.animate-stagger-5 { animation-delay: 0.75s; }
-.animate-stagger-6 { animation-delay: 0.9s; }
-.animate-stagger-7 { animation-delay: 1.05s; }
-.animate-stagger-8 { animation-delay: 1.2s; }
-.animate-stagger-9 { animation-delay: 1.35s; }
-.animate-stagger-10 { animation-delay: 1.5s; }
+.animate-stagger-1 { animation-delay: 0.1s; }
+.animate-stagger-2 { animation-delay: 0.2s; }
+.animate-stagger-3 { animation-delay: 0.3s; }
+.animate-stagger-4 { animation-delay: 0.4s; }
+.animate-stagger-5 { animation-delay: 0.5s; }
+.animate-stagger-6 { animation-delay: 0.6s; }
+.animate-stagger-7 { animation-delay: 0.7s; }
+.animate-stagger-8 { animation-delay: 0.8s; }
+.animate-stagger-9 { animation-delay: 0.9s; }
+.animate-stagger-10 { animation-delay: 1.0s; }
 
 /* ===== HOVER EFFECTS ===== */
 .hover-lift {
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hover-lift:hover {
-  transform: translateY(-8px);
-  box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.3),
-    0 0 20px rgba(0, 255, 157, 0.15);
+  transform: translateY(-5px);
+  box-shadow:
+    0 16px 32px rgba(0, 0, 0, 0.3),
+    0 0 16px rgba(0, 255, 157, 0.1);
 }
 
 .hover-scale {
@@ -188,13 +207,12 @@
 
 .hover-glow:hover {
   box-shadow: 
-    0 0 20px rgba(0, 255, 157, 0.4),
-    0 0 40px rgba(0, 255, 157, 0.2),
-    inset 0 0 20px rgba(0, 255, 157, 0.1);
+    0 0 20px rgba(0, 255, 157, 0.3),
+    0 0 40px rgba(0, 255, 157, 0.15);
 }
 
 .hover-glow-subtle {
-  transition: all 0.3s ease-out;
+  transition: box-shadow 0.3s ease-out, border-color 0.3s ease-out;
 }
 
 .hover-glow-subtle:hover {
@@ -204,12 +222,13 @@
 
 /* ===== CYBER THEME ===== */
 .cyber-card {
-  background: rgba(10, 10, 10, 0.8);
+  background: rgba(10, 10, 10, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 24px;
-  backdrop-filter: blur(10px);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .cyber-card:hover {
@@ -226,7 +245,8 @@
   color: #000;
   font-weight: 600;
   border-radius: 8px;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   display: inline-flex;
   align-items: center;
   position: relative;
@@ -274,12 +294,12 @@
   border: 1px solid rgba(0, 255, 157, 0.25);
   box-shadow: 
     0 8px 32px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(0, 255, 157, 0.1),
-    inset 0 1px 0 rgba(0, 255, 157, 0.1);
+    0 0 0 1px rgba(0, 255, 157, 0.1);
   position: relative;
   overflow: hidden;
 }
 
+/* Scanline effect uses a static image to avoid per-frame painting */
 .terminal-aesthetic::before {
   content: '';
   position: absolute;
@@ -287,17 +307,16 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: 
-    repeating-linear-gradient(
-      0deg,
-      rgba(0, 255, 157, 0.03) 0px,
-      rgba(0, 255, 157, 0.03) 1px,
-      transparent 1px,
-      transparent 2px
-    );
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 255, 157, 0.015) 0px,
+    rgba(0, 255, 157, 0.015) 1px,
+    transparent 1px,
+    transparent 3px
+  );
   pointer-events: none;
-  opacity: 0.5;
   z-index: 1;
+  will-change: auto;
 }
 
 .terminal-aesthetic > * {
@@ -321,16 +340,15 @@
 /* ===== PULSE ANIMATIONS ===== */
 .animate-pulse-dot {
   animation: pulseDot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  will-change: opacity;
 }
 
 @keyframes pulseDot {
   0%, 100% {
     opacity: 1;
-    box-shadow: 0 0 0 0 currentColor;
   }
   50% {
-    opacity: 0.7;
-    box-shadow: 0 0 8px 2px currentColor;
+    opacity: 0.4;
   }
 }
 
@@ -340,7 +358,9 @@
 }
 
 .skill-card .corner-accent {
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .skill-card:hover .corner-accent {
@@ -359,7 +379,7 @@
 
 /* ===== NAVBAR ===== */
 .animate-fade-in-down {
-  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeInDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ===== TERMINAL BUTTONS ===== */
@@ -406,14 +426,15 @@
 }
 
 .hover-terminal {
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hover-terminal:hover {
   transform: translateY(-5px);
   box-shadow: 
     0 20px 40px rgba(0, 0, 0, 0.4),
-    0 0 30px rgba(0, 255, 157, 0.15);
+    0 0 20px rgba(0, 255, 157, 0.1);
 }
 
 /* ===== ANIMATION DELAY UTILITIES ===== */

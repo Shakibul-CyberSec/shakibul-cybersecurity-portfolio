@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Animate, Stagger, ProgressBar, HoverEffect } from './Animations';
+import { Animate, ProgressBar, HoverEffect } from './Animations';
 
 const Skills = () => {
   const [activeTab, setActiveTab] = useState('security');
@@ -34,7 +34,7 @@ const Skills = () => {
     <section id="skills" className="py-20 px-4 relative">
       <div className="max-w-6xl mx-auto">
         {/* Header - Single animation */}
-        <Animate animation="fadeInUp" delay={0.1}>
+        <Animate animation="fadeInUp">
           <div className="text-center mb-16">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-neon-green/10 border border-neon-green/30 mb-6 hover-glow-subtle">
               <span className="text-neon-green text-sm font-mono">Technical Expertise</span>
@@ -50,7 +50,7 @@ const Skills = () => {
         </Animate>
 
         {/* Tabs - Single animation */}
-        <Animate animation="scaleIn" delay={0.25}>
+        <Animate animation="fadeIn" delay={0.1}>
           <div className="flex flex-wrap gap-3 mb-12 justify-center">
             {['security', 'tools'].map((tab) => (
               <button
@@ -69,7 +69,7 @@ const Skills = () => {
         </Animate>
 
         {/* Content - Single animation for card */}
-        <Animate animation="fadeInUp" delay={0.35} key={activeTab}>
+        <Animate animation="fadeIn" delay={0.15} key={activeTab}>
           <div className="cyber-card p-8 md:p-12">
             {activeTab === 'security' && (
               <div className="space-y-8">
@@ -122,7 +122,7 @@ const Skills = () => {
         </Animate>
 
         {/* Methodology Section - Single animation */}
-        <Animate animation="fadeInUp" delay={0.45}>
+        <Animate animation="fadeInUp" delay={0.05}>
           <div className="mt-20 p-8 md:p-12 rounded-xl bg-gradient-to-br from-cyber-dark to-black border border-cyber-border hover-lift">
             <h3 className="text-3xl font-heading font-bold text-white mb-8 text-center">
               Security Methodology

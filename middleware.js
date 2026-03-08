@@ -32,7 +32,6 @@ const COOLDOWN_PERIOD = 24 * 60 * 60 * 1000;
 
 // Fallback in-memory storage (only used if KV unavailable)
 const memoryCache = new Map();
-const violationTracker = new Map();
 const shadowBanned = new Set();
 
 /* ---------- KV STORAGE HELPERS ---------- */
@@ -222,11 +221,7 @@ async function checkBehavior(clientKey, now) {
   const timeDiff = now - record.lastRequest;
   
   // Suspicious: Requests faster than humanly possible (< 800ms)
-  if (timeDiff < 800) {
-    return false;
-  }
-  
-  return true;
+  return timeDiff >= 800;
 }
 
 /* ---------- SUBNET-WIDE TRACKING ---------- */
@@ -428,16 +423,13 @@ export async function middleware(request) {
         JSON.stringify({
           error: errorMessage,
           type: 'rate_limit',
-          tier: process.env.NODE_ENV === 'development' ? effectiveTier : undefined
+          ...(process.env.NODE_ENV === 'development' ? { tier: effectiveTier } : {})
         }),
         {
           status: 429,
           headers: {
             'Content-Type': 'application/json',
             'Retry-After': retryAfter.toString(),
-            'X-RateLimit-Limit': limit.count.toString(),
-            'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': Math.floor((record.start + limit.window) / 1000).toString(),
             'Cache-Control': 'no-store',
           },
         }
@@ -477,7 +469,8 @@ export async function middleware(request) {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('X-Frame-Options', 'DENY');
-  
+  response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
+
   if (process.env.NODE_ENV === 'production') {
     response.headers.set(
       'Strict-Transport-Security',

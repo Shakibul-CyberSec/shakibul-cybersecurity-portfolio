@@ -28,12 +28,12 @@ const About = () => {
 
   return (
     <section id="about" className="py-20 px-4 relative overflow-hidden">
-      {/* Animated background grid */}
-      <div className="absolute inset-0 cyber-grid opacity-20 pointer-events-none" />
-      
+      {/* Animated background grid - promoted to own layer */}
+      <div className="absolute inset-0 cyber-grid opacity-20 pointer-events-none" style={{ transform: 'translateZ(0)' }} />
+
       <div className="max-w-6xl mx-auto relative z-10">
         {/* Header */}
-        <Animate animation="fadeInUp" delay={0.1} className="text-center mb-16">
+        <Animate animation="fadeInUp" className="text-center mb-16">
           <div className="inline-flex items-center px-4 py-2 rounded-full bg-neon-green/10 border border-neon-green/30 mb-6 hover-glow-subtle">
             <span className="text-neon-green text-sm font-mono animate-pulse-text">About Me</span>
           </div>
@@ -49,7 +49,7 @@ const About = () => {
         {/* Main Content Grid */}
         <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
           {/* Text Content */}
-          <Animate animation="fadeInLeft" delay={0.25} duration={1.0} className="space-y-6">
+          <Animate animation="fadeInLeft" delay={0.05} className="space-y-6">
             <h3 className="text-3xl font-heading font-bold text-white">
               Proactive Security Approach
             </h3>
@@ -83,7 +83,7 @@ const About = () => {
           </Animate>
 
           {/* Terminal Window */}
-          <Animate animation="fadeInRight" delay={0.25} duration={1.0} className="terminal-aesthetic cyber-card p-8 hover-terminal">
+          <Animate animation="fadeInRight" delay={0.15} className="terminal-aesthetic cyber-card p-8 hover-terminal">
             <div className="flex items-center mb-6 pb-4 border-b border-neon-green/20">
               <div className="flex space-x-2 mr-4">
                 <div className="w-3 h-3 rounded-full bg-red-500 terminal-button" />
@@ -122,7 +122,7 @@ offensive_security_assessment_2025.pdf`}
         </div>
 
         {/* Skills Grid - Slower, more elegant stagger */}
-        <Stagger stagger={0.12} className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Stagger stagger={0.08} className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {skills.map((skill, index) => (
             <HoverEffect key={index} effect="lift" className="h-full">
               <div className="cyber-card h-full group skill-card">

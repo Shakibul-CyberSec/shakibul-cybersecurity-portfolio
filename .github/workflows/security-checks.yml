@@ -140,7 +140,7 @@ jobs:
     # 5. Security summary for PRs
     - name: Add security summary to PR
       if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         script: |
           const { owner, repo, number } = context.issue;

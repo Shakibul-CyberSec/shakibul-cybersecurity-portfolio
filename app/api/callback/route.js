@@ -12,3 +12,10 @@ export async function GET(request) {
 
   return new Response("Logged", { status: 200 });
 }
+export async function POST(request) {
+  const body = await request.text();
+
+  console.log("POST BODY:", body);
+
+  return new Response("POST Logged", { status: 200 });
+}

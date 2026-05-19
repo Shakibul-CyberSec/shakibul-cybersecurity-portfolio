@@ -242,18 +242,17 @@ const logger = (level, message, ip, additionalData = {}) => {
 };
 
 const getClientIP = (req) => {
-  const xForwardedFor = req.headers.get('x-forwarded-for');
+  const vercelIP = req.headers.get('x-vercel-forwarded-for');
   const cfConnectingIP = req.headers.get('cf-connecting-ip');
   const realIP = req.headers.get('x-real-ip');
-  const vercelIP = req.headers.get('x-vercel-forwarded-for');
-  
-  return xForwardedFor?.split(',')[0]?.trim() || 
-         cfConnectingIP || 
-         realIP || 
-         vercelIP?.split(',')[0]?.trim() || 
+  const xForwardedFor = req.headers.get('x-forwarded-for');
+
+  return vercelIP?.split(',')[0]?.trim() ||
+         cfConnectingIP ||
+         realIP ||
+         xForwardedFor?.split(',')[0]?.trim() ||
          'unknown-ip';
 };
-
 const getIPSubnet = (ip) => {
   if (!ip || ip === 'unknown-ip') return 'unknown';
   const ipv4Match = ip.match(/^(\d+\.\d+\.\d+)\.\d+$/);
@@ -558,6 +557,15 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 export async function POST(req) {
+  // --- DoS Mitigation: Memory Exhaustion Protection ---
+  if (requestTracker.size > 10000) requestTracker.clear();
+  if (captchaStates.size > 10000) captchaStates.clear();
+  if (shadowBanned.size > 10000) shadowBanned.clear();
+  if (payloadCache.size > 10000) payloadCache.clear();
+  if (emailTrackerMemory.size > 10000) emailTrackerMemory.clear();
+  if (emailBannedMemory.size > 10000) emailBannedMemory.clear();
+  // ----------------------------------------------------
+
   const requestId = crypto.randomUUID().substring(0, 8);
   const ip = getClientIP(req);
   const subnet = getIPSubnet(ip);

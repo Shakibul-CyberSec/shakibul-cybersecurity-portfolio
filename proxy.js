@@ -284,11 +284,10 @@ export async function proxy(request) {
   if (pathname === '/api/SendEmail') {
     const ip = getClientIP(request);
     const subnet = getIPSubnet(ip);
-    const fingerprint = await getFingerprint(request);
     const method = request.method;
 
     // Multi-dimensional keys
-    const clientKey = `${subnet}:${fingerprint}:${method}`;
+    const clientKey = `${ip}:${method}`; // Strict IP-based limit
     const subnetKey = `subnet:${subnet}:${method}`;
 
     /* ---------- BOT DETECTION ---------- */

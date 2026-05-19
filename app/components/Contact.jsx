@@ -504,9 +504,7 @@ const Contact = () => {
               <div className="text-sm">Cybersecurity Specialist</div>
             </div>
             <div className="flex space-x-6 text-sm text-cyber-gray">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Security Policy</a>
-              <div className="text-neon-green font-mono">© 2025</div>
+              <div className="text-neon-green font-mono">© 2026</div>
             </div>
           </div>
         </div>

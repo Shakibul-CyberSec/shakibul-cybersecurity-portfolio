@@ -145,7 +145,7 @@ offensive_security_assessment_2025.pdf`}
                 {/* Progress indicator */}
                 <div className="mt-4 pt-4 border-t border-cyber-border/30 opacity-0 group-hover:opacity-100 transition-all duration-500">
                   <div className="h-1 bg-cyber-border/50 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-neon-green to-neon-cyan rounded-full skill-progress" />
+                    <div className="h-full bg-linear-to-r from-neon-green to-neon-cyan rounded-full skill-progress" />
                   </div>
                 </div>
               </div>

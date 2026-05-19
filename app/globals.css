@@ -1,21 +1,252 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-cyber-dark: #0a0a0a;
+  --color-cyber-card: #111111;
+  --color-cyber-border: #1a1a1a;
+  --color-neon-green: #00ff41;
+  --color-neon-cyan: #00e5ff;
+  --color-cyber-gray: #a0a0a0;
+  --color-terminal-bg: #0d0d0d;
+
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-heading:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --animate-fade-in: fadeIn 0.5s ease-out forwards;
+  --animate-fade-in-up: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-fade-in-down: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-fade-in-left: fadeInLeft 0.65s cubic-bezier(0.16, 1, 0.3, 1)
+    forwards;
+  --animate-fade-in-right: fadeInRight 0.65s cubic-bezier(0.16, 1, 0.3, 1)
+    forwards;
+  --animate-scale-in: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-up: slideUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-down: slideDown 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-pulse-subtle: pulseSubtle 2s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-glow: glow 3s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s infinite linear;
+  --animate-typing:
+    typing 3.5s steps(40, end) forwards, blink 1s step-end infinite 3.5s;
+  --animate-progress-grow: progressGrow 1.5s cubic-bezier(0.65, 0, 0.35, 1)
+    forwards;
+  --animate-border-glow: borderGlow 3s ease-in-out infinite;
+  --animate-text-shimmer: textShimmer 2s linear infinite;
+  --animate-neon-pulse: neonPulse 2s ease-in-out infinite;
+
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  @keyframes fadeInUp {
+    0% {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fadeInDown {
+    0% {
+      opacity: 0;
+      transform: translateY(-24px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fadeInLeft {
+    0% {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  @keyframes fadeInRight {
+    0% {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  @keyframes scaleIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes slideUp {
+    0% {
+      transform: translateY(32px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes slideDown {
+    0% {
+      transform: translateY(-32px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes pulseSubtle {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+  @keyframes glow {
+    0%,
+    100% {
+      box-shadow:
+        0 0 5px rgba(0, 255, 157, 0.3),
+        0 0 10px rgba(0, 255, 157, 0.2);
+    }
+    50% {
+      box-shadow:
+        0 0 20px rgba(0, 255, 157, 0.6),
+        0 0 30px rgba(0, 255, 157, 0.4);
+    }
+  }
+  @keyframes borderGlow {
+    0%,
+    100% {
+      border-color: rgba(0, 255, 157, 0.3);
+      box-shadow: 0 0 5px rgba(0, 255, 157, 0.2);
+    }
+    50% {
+      border-color: rgba(0, 255, 157, 0.8);
+      box-shadow: 0 0 15px rgba(0, 255, 157, 0.6);
+    }
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: -200% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
+  }
+  @keyframes textShimmer {
+    0% {
+      background-position: 0% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
+  }
+  @keyframes typing {
+    from {
+      width: 0;
+    }
+    to {
+      width: 100%;
+    }
+  }
+  @keyframes blink {
+    0%,
+    100% {
+      border-color: transparent;
+    }
+    50% {
+      border-color: #00ff41;
+    }
+  }
+  @keyframes progressGrow {
+    0% {
+      width: 0%;
+    }
+    100% {
+      width: var(--progress-width, 100%);
+    }
+  }
+  @keyframes neonPulse {
+    0%,
+    100% {
+      text-shadow: 0 0 5px rgba(0, 255, 157, 0.5);
+      opacity: 1;
+    }
+    50% {
+      text-shadow:
+        0 0 15px rgba(0, 255, 157, 0.8),
+        0 0 25px rgba(0, 255, 157, 0.4);
+      opacity: 0.9;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 /* ===== PERFORMANCE OPTIMIZATIONS ===== */
-@layer utilities {
-  .will-change-transform {
-    will-change: transform;
-  }
-  
-  .will-change-opacity {
-    will-change: opacity;
-  }
-  
-  .gpu-accelerate {
-    transform: translateZ(0);
-    backface-visibility: hidden;
-  }
+@utility will-change-transform {
+  will-change: transform;
+}
+@utility will-change-opacity {
+  will-change: opacity;
+}
+@utility gpu-accelerate {
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* Smooth scroll only for anchor clicks, not during general scrolling */

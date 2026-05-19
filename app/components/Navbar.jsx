@@ -109,7 +109,7 @@ const Navbar = () => {
             <Link
               href="#contact"
               onClick={(e) => handleNavClick(e, '#contact')}
-              className="ml-4 px-6 py-2 bg-gradient-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg hover:shadow-lg hover:shadow-neon-green/30 transition-all duration-400 hover:scale-105 active:scale-95"
+              className="ml-4 px-6 py-2 bg-linear-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg hover:shadow-lg hover:shadow-neon-green/30 transition-all duration-400 hover:scale-105 active:scale-95"
             >
               Get in Touch
             </Link>
@@ -127,7 +127,7 @@ const Navbar = () => {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-cyber-border animate-fadeIn">
+          <div className="md:hidden py-4 border-t border-cyber-border animate-fade-in">
             <div className="space-y-2">
               {navItems.map((item) => {
                 const isActive = activeSection === item.href.replace('#', '');
@@ -150,7 +150,7 @@ const Navbar = () => {
               <Link
                 href="#contact"
                 onClick={(e) => handleNavClick(e, '#contact')}
-                className="block mt-4 px-6 py-3 bg-gradient-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg text-center hover:shadow-lg hover:shadow-neon-green/30 transition-all duration-300"
+                className="block mt-4 px-6 py-3 bg-linear-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg text-center hover:shadow-lg hover:shadow-neon-green/30 transition-all duration-300"
               >
                 Contact Me
               </Link>

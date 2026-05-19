@@ -227,7 +227,7 @@ export function ProgressBar({
       <div className="h-2 bg-cyber-border/30 rounded-full overflow-hidden">
         <div
           ref={barRef}
-          className="h-full bg-gradient-to-r from-neon-green to-neon-cyan rounded-full progress-bar-fill"
+          className="h-full bg-linear-to-r from-neon-green to-neon-cyan rounded-full progress-bar-fill"
         />
       </div>
     </div>

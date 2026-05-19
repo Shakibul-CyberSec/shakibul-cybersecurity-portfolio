@@ -196,26 +196,26 @@ const Contact = () => {
         bg: 'bg-neon-green/10',
         border: 'border-neon-green',
         text: 'text-neon-green',
-        icon: <FiCheckCircle className="w-5 h-5 text-neon-green mr-3 flex-shrink-0" />
+        icon: <FiCheckCircle className="w-5 h-5 text-neon-green mr-3 shrink-0" />
       },
       error: {
         bg: 'bg-red-500/10',
         border: 'border-red-500',
         text: 'text-red-400',
-        icon: <FiAlertCircle className="w-5 h-5 text-red-400 mr-3 flex-shrink-0" />
+        icon: <FiAlertCircle className="w-5 h-5 text-red-400 mr-3 shrink-0" />
       },
       ratelimit: {
         bg: 'bg-yellow-500/10',
         border: 'border-yellow-500',
         text: 'text-yellow-400',
-        icon: <FiClock className="w-5 h-5 text-yellow-400 mr-3 flex-shrink-0" />
+        icon: <FiClock className="w-5 h-5 text-yellow-400 mr-3 shrink-0" />
       }
     };
 
     const style = messageStyles[responseMessage.type] || messageStyles.error;
 
     return (
-      <div className={`mb-6 p-4 ${style.bg} border ${style.border} rounded-lg flex items-start animate-fadeInUp`}>
+      <div className={`mb-6 p-4 ${style.bg} border ${style.border} rounded-lg flex items-start animate-fade-in-up`}>
         {style.icon}
         <span className={`${style.text} font-medium`}>{responseMessage.message}</span>
       </div>
@@ -350,7 +350,7 @@ const Contact = () => {
                       onChange={handleChange}
                       required
                       maxLength={50}
-                      className="w-full px-4 py-3 bg-cyber-dark border border-cyber-border rounded-lg text-white focus:outline-none focus:border-neon-green focus:ring-2 focus:ring-neon-green/20 transition-all duration-300"
+                      className="w-full px-4 py-3 bg-cyber-dark border border-cyber-border rounded-lg text-white focus:outline-hidden focus:border-neon-green focus:ring-2 focus:ring-neon-green/20 transition-all duration-300"
                       placeholder="John"
                     />
                   </div>
@@ -365,7 +365,7 @@ const Contact = () => {
                       onChange={handleChange}
                       required
                       maxLength={50}
-                      className="w-full px-4 py-3 bg-cyber-dark border border-cyber-border rounded-lg text-white focus:outline-none focus:border-neon-green focus:ring-2 focus:ring-neon-green/20 transition-all duration-300"
+                      className="w-full px-4 py-3 bg-cyber-dark border border-cyber-border rounded-lg text-white focus:outline-hidden focus:border-neon-green focus:ring-2 focus:ring-neon-green/20 transition-all duration-300"
                       placeholder="Doe"
                     />
                   </div>
@@ -381,7 +381,7 @@ const Contact = () => {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 bg-cyber-dark border border-cyber-border rounded-lg text-white focus:outline-none focus:border-neon-green focus:ring-2 focus:ring-neon-green/20 transition-all duration-300"
+                    className="w-full px-4 py-3 bg-cyber-dark border border-cyber-border rounded-lg text-white focus:outline-hidden focus:border-neon-green focus:ring-2 focus:ring-neon-green/20 transition-all duration-300"
                     placeholder="john@example.com"
                   />
                 </div>
@@ -396,7 +396,7 @@ const Contact = () => {
                     value={formData.subject}
                     onChange={handleChange}
                     maxLength={100}
-                    className="w-full px-4 py-3 bg-cyber-dark border border-cyber-border rounded-lg text-white focus:outline-none focus:border-neon-green focus:ring-2 focus:ring-neon-green/20 transition-all duration-300"
+                    className="w-full px-4 py-3 bg-cyber-dark border border-cyber-border rounded-lg text-white focus:outline-hidden focus:border-neon-green focus:ring-2 focus:ring-neon-green/20 transition-all duration-300"
                     placeholder="Security Consultation"
                   />
                 </div>
@@ -412,7 +412,7 @@ const Contact = () => {
                     required
                     maxLength={2000}
                     rows="6"
-                    className="w-full px-4 py-3 bg-cyber-dark border border-cyber-border rounded-lg text-white focus:outline-none focus:border-neon-green focus:ring-2 focus:ring-neon-green/20 transition-all duration-300 resize-none"
+                    className="w-full px-4 py-3 bg-cyber-dark border border-cyber-border rounded-lg text-white focus:outline-hidden focus:border-neon-green focus:ring-2 focus:ring-neon-green/20 transition-all duration-300 resize-none"
                     placeholder="Describe your security requirements..."
                   />
                   <div className="text-xs text-cyber-gray mt-1 text-right">
@@ -457,10 +457,10 @@ const Contact = () => {
                 </div>
 
                 {showCaptcha && (
-                  <div className="animate-fadeInUp">
+                  <div className="animate-fade-in-up">
                     <div className="bg-yellow-500/10 border border-yellow-500 rounded-lg p-4 mb-4">
                       <div className="flex items-start">
-                        <FiShield className="w-5 h-5 text-yellow-400 mr-3 flex-shrink-0 mt-0.5" />
+                        <FiShield className="w-5 h-5 text-yellow-400 mr-3 shrink-0 mt-0.5" />
                         <div>
                           <h4 className="text-yellow-400 font-semibold mb-1">Security Verification Required</h4>
                           <p className="text-sm text-cyber-gray">
@@ -483,7 +483,7 @@ const Contact = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting || (showCaptcha && !captchaToken)}
-                    className="group relative inline-flex items-center px-8 py-3 bg-gradient-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-neon-green/30 transition-all duration-300 hover:scale-105 active:scale-95"
+                    className="group relative inline-flex items-center px-8 py-3 bg-linear-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-neon-green/30 transition-all duration-300 hover:scale-105 active:scale-95"
                   >
                     <span className="relative z-10 flex items-center">
                       {isSubmitting ? 'Sending...' : 'Send Message'}

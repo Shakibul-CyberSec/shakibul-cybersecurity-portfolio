@@ -52,7 +52,7 @@ export default async function RootLayout({ children }) {
       </head>
       <body className="antialiased" suppressHydrationWarning>
         <NonceScript nonce={nonce} />
-        <div className="fixed inset-0 bg-gradient-to-br from-cyber-dark via-black to-cyber-dark pointer-events-none will-change-transform gpu-accelerate" />
+        <div className="fixed inset-0 bg-linear-to-br from-cyber-dark via-black to-cyber-dark pointer-events-none will-change-transform gpu-accelerate" />
         <div className="relative z-10">
           {children}
         </div>

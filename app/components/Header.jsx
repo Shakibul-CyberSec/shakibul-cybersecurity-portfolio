@@ -21,7 +21,7 @@ const Header = () => {
             <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-heading font-bold leading-tight">
               <span className="text-white">Securing Digital</span>
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-green via-neon-cyan to-neon-green bg-size-200 text-glow-subtle">
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-neon-green via-neon-cyan to-neon-green bg-size-200 text-glow-subtle">
                 Infrastructure
               </span>
             </h1>
@@ -61,7 +61,7 @@ const Header = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <a
                 href="#contact"
-                className="group relative inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-neon-green/30 hover:scale-105 active:scale-95"
+                className="group relative inline-flex items-center justify-center px-8 py-4 bg-linear-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-neon-green/30 hover:scale-105 active:scale-95"
               >
                 <span className="relative z-10 flex items-center">
                   Start Security Assessment
@@ -83,7 +83,7 @@ const Header = () => {
           {/* Scroll Indicator - No animation wrapper, just a subtle static element */}
           <div className="pt-16 opacity-50 hover:opacity-80 transition-opacity duration-500">
             <div className="text-cyber-gray text-sm font-mono mb-2">Scroll to explore</div>
-            <div className="w-px h-10 bg-gradient-to-b from-neon-green/60 to-transparent mx-auto animate-pulse-dot" />
+            <div className="w-px h-10 bg-linear-to-b from-neon-green/60 to-transparent mx-auto animate-pulse-dot" />
           </div>
         </div>
       </div>

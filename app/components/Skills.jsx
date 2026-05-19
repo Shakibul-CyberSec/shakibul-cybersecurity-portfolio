@@ -58,7 +58,7 @@ const Skills = () => {
                 onClick={() => setActiveTab(tab)}
                 className={`px-8 py-3 rounded-lg font-semibold transition-all duration-300 ${
                   activeTab === tab
-                    ? 'bg-gradient-to-r from-neon-green to-neon-cyan text-black shadow-lg shadow-neon-green/30 scale-105'
+                    ? 'bg-linear-to-r from-neon-green to-neon-cyan text-black shadow-lg shadow-neon-green/30 scale-105'
                     : 'bg-cyber-card text-cyber-gray hover:text-white hover:bg-cyber-border border border-cyber-border hover:border-neon-green/30'
                 }`}
               >
@@ -123,7 +123,7 @@ const Skills = () => {
 
         {/* Methodology Section - Single animation */}
         <Animate animation="fadeInUp" delay={0.05}>
-          <div className="mt-20 p-8 md:p-12 rounded-xl bg-gradient-to-br from-cyber-dark to-black border border-cyber-border hover-lift">
+          <div className="mt-20 p-8 md:p-12 rounded-xl bg-linear-to-br from-cyber-dark to-black border border-cyber-border hover-lift">
             <h3 className="text-3xl font-heading font-bold text-white mb-8 text-center">
               Security Methodology
             </h3>

@@ -113,7 +113,7 @@ const Certifications = () => {
                   href={cert.verifyUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-6 py-2 bg-gradient-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg hover:shadow-lg hover:shadow-neon-green/30 transition-all duration-300 hover:scale-105 active:scale-95"
+                  className="px-6 py-2 bg-linear-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg hover:shadow-lg hover:shadow-neon-green/30 transition-all duration-300 hover:scale-105 active:scale-95"
                 >
                   Verify
                 </a>
@@ -149,11 +149,11 @@ const Certifications = () => {
       {/* Certificate Modal */}
       {selectedCert && (
         <div 
-          className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-50 animate-fadeIn backdrop-blur-sm"
+          className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-50 animate-fade-in backdrop-blur-xs"
           onClick={() => setSelectedCert(null)}
         >
           <div 
-            className="bg-cyber-card border-2 border-neon-green/30 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 animate-scaleIn shadow-2xl shadow-neon-green/20"
+            className="bg-cyber-card border-2 border-neon-green/30 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 animate-scale-in shadow-2xl shadow-neon-green/20"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -228,7 +228,7 @@ const Certifications = () => {
                 href={selectedCert.verifyUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-6 py-3 bg-gradient-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg hover:shadow-lg hover:shadow-neon-green/30 transition-all duration-300 hover:scale-105 active:scale-95 text-center"
+                className="px-6 py-3 bg-linear-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg hover:shadow-lg hover:shadow-neon-green/30 transition-all duration-300 hover:scale-105 active:scale-95 text-center"
               >
                 Verify Certificate
               </a>

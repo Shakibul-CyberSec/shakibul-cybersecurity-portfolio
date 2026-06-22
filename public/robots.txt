@@ -1,0 +1,37 @@
+# 1. Allow search engines for SEO
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /api/
+
+# 2. Block AI scraper bots (saves server resources)
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+# 3. Block aggressive SEO crawlers (prevents database exhaustion)
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+# 4. Default rules for remaining traffic
+User-agent: *
+Allow: /
+Disallow: /api/

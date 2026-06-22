@@ -2,7 +2,6 @@
 const nextConfig = {
   // Disable image optimization for strict CSP
   images: {
-    domains: [],
     unoptimized: true, // Required for strict CSP
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",

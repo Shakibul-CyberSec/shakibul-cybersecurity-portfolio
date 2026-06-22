@@ -61,6 +61,10 @@ const Header = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <a
                 href="#contact"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
                 className="group relative inline-flex items-center justify-center px-8 py-4 bg-linear-to-r from-neon-green to-neon-cyan text-black font-semibold rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-neon-green/30 hover:scale-105 active:scale-95"
               >
                 <span className="relative z-10 flex items-center">
@@ -72,6 +76,10 @@ const Header = () => {
               
               <a
                 href="#certifications"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById('certifications')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
                 className="group inline-flex items-center justify-center px-8 py-4 bg-cyber-card border-2 border-neon-green/30 text-white font-semibold rounded-lg hover:bg-neon-green/10 hover:border-neon-green transition-all duration-300"
               >
                 <FiCode className="mr-2 w-5 h-5" />

@@ -4,16 +4,19 @@ import { NextResponse } from 'next/server';
 let kv = null;
 let kvAvailable = false;
 
-// Correct way to import Vercel KV - it auto-reads KV_REST_API_URL and KV_REST_API_TOKEN from env
+// Correct way to import Upstash Redis
 if (typeof process !== 'undefined' && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
   try {
     // Dynamic import at runtime
-    const kvModule = await import('@vercel/kv');
-    kv = kvModule.kv;
+    const { Redis } = await import('@upstash/redis');
+    kv = new Redis({
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
+    });
     kvAvailable = true;
-    console.log('[Security] Vercel KV initialized - Persistent storage enabled ✅');
+    console.log('[Security] Upstash Redis initialized - Persistent storage enabled ✅');
   } catch (error) {
-    console.log('[Security] Vercel KV not available - Using in-memory fallback ⚠️');
+    console.log('[Security] Upstash Redis not available - Using in-memory fallback ⚠️');
     kvAvailable = false;
   }
 } else {
@@ -273,14 +276,27 @@ function cleanupMemory() {
   }
 }
 
-// Run cleanup every 10 minutes (only for fallback)
-setInterval(cleanupMemory, 10 * 60 * 1000);
+// Run cleanup every 10 minutes (only for fallback, in long-lived environments)
+// NOTE: setInterval removed from module scope - in serverless/edge runtimes
+// this leaks timers. Cleanup is now triggered lazily within the middleware.
+let lastCleanupTime = 0;
+const CLEANUP_INTERVAL = 10 * 60 * 1000;
+function maybeCleanupMemory() {
+  const now = Date.now();
+  if (now - lastCleanupTime > CLEANUP_INTERVAL) {
+    lastCleanupTime = now;
+    cleanupMemory();
+  }
+}
 
 /* ---------- Proxy ---------- */
 export async function proxy(request) {
   const pathname = request.nextUrl.pathname;
 
   /* 🔒 RATE LIMIT FOR /api/SendEmail */
+  // Trigger lazy memory cleanup
+  maybeCleanupMemory();
+
   if (pathname === '/api/SendEmail') {
     const ip = getClientIP(request);
     const subnet = getIPSubnet(ip);
@@ -482,7 +498,7 @@ export async function proxy(request) {
 
 /* ---------- Routes ---------- */
 export const config = {
-  routes: ['/((?!_next/static|_next/image|favicon.ico|cyber-icon.svg|u\\.js).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|cyber-icon.svg|u\\.js).*)'],
 };
 
 

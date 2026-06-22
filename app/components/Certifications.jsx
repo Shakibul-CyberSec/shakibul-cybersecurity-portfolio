@@ -1,11 +1,32 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FiExternalLink, FiCalendar, FiCheckCircle, FiAward } from 'react-icons/fi';
 import { Animate, Stagger } from './Animations';
 import Image from 'next/image';
 
 const Certifications = () => {
   const [selectedCert, setSelectedCert] = useState(null);
+
+  // Escape key handler and body scroll lock for modal
+  const closeModal = useCallback(() => setSelectedCert(null), []);
+
+  useEffect(() => {
+    if (!selectedCert) return;
+
+    // Lock body scroll when modal is open
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') closeModal();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedCert, closeModal]);
 
   const certifications = [
     {
@@ -150,7 +171,10 @@ const Certifications = () => {
       {selectedCert && (
         <div 
           className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-50 animate-fade-in backdrop-blur-xs"
-          onClick={() => setSelectedCert(null)}
+          onClick={closeModal}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${selectedCert.title} certificate details`}
         >
           <div 
             className="bg-cyber-card border-2 border-neon-green/30 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 animate-scale-in shadow-2xl shadow-neon-green/20"
@@ -166,7 +190,7 @@ const Certifications = () => {
                 </div>
               </div>
               <button
-                onClick={() => setSelectedCert(null)}
+                onClick={closeModal}
                 className="text-cyber-gray hover:text-white text-3xl transition-colors leading-none p-2 hover:rotate-90 transform duration-300"
                 aria-label="Close"
               >
@@ -219,7 +243,7 @@ const Certifications = () => {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row justify-end gap-4">
               <button
-                onClick={() => setSelectedCert(null)}
+                onClick={closeModal}
                 className="px-6 py-3 text-cyber-gray hover:text-white transition-colors font-medium border border-cyber-border rounded-lg hover:border-neon-green/30"
               >
                 Close

@@ -381,6 +381,7 @@ const Contact = () => {
                     value={formData.email}
                     onChange={handleChange}
                     required
+                    maxLength={254}
                     className="w-full px-4 py-3 bg-cyber-dark border border-cyber-border rounded-lg text-white focus:outline-hidden focus:border-neon-green focus:ring-2 focus:ring-neon-green/20 transition-all duration-300"
                     placeholder="john@example.com"
                   />
@@ -421,7 +422,7 @@ const Contact = () => {
                 </div>
 
                 {/* 🍯 HONEYPOT FIELDS - Completely hidden from real users, only bots will fill these */}
-                <div className="hidden">
+                <div className="hp-trap" aria-hidden="true">
                   <label htmlFor="company">Company Name (Leave blank)</label>
                   <input
                     type="text"

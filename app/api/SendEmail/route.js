@@ -9,24 +9,31 @@ const sanitizeInput = (input, options = {}) => {
   let sanitized = String(input);
   
   if (!options.ALLOWED_TAGS || options.ALLOWED_TAGS.length === 0) {
-    // Remove ALL HTML tags (no tags allowed)
-    sanitized = sanitized.replace(/<[^>]*>/g, '');
+    // Remove ALL HTML tags (no tags allowed) — also match malformed tags without closing >
+    sanitized = sanitized.replace(/<[^>]*>?/g, '');
   } else {
     // Step 1: Remove all tags NOT in the allowed list
     const allowedTags = options.ALLOWED_TAGS.join('|');
-    const disallowedTagRegex = new RegExp(`<(?!\\/?(${allowedTags})\\b)[^>]*>`, 'gi');
+    const disallowedTagRegex = new RegExp(`<(?!\\/?(${allowedTags})\\b)[^>]*>?`, 'gi');
     sanitized = sanitized.replace(disallowedTagRegex, '');
 
     // Step 2: Strip ALL attributes from the remaining allowed tags
-    // This prevents event handler injection like <p onclick=alert(1)>
-    const attrStripRegex = new RegExp(`<(\\/?(?:${allowedTags}))\\s[^>]*>`, 'gi');
+    // Match tags with any whitespace (including newlines) before attributes
+    const attrStripRegex = new RegExp(`<(\\/?(?:${allowedTags}))[\\s/][^>]*>`, 'gi');
     sanitized = sanitized.replace(attrStripRegex, '<$1>');
   }
 
-  // Encode any remaining dangerous characters that aren't part of allowed tags
-  sanitized = sanitized
-    .replace(/javascript:/gi, '')
-    .replace(/on\w+\s*=/gi, '');
+  // Iteratively remove dangerous patterns to prevent bypass via nesting
+  // e.g., "javajavascript:script:" → "javascript:" after first pass
+  let prev;
+  do {
+    prev = sanitized;
+    sanitized = sanitized
+      .replace(/javascript\s*:/gi, '')
+      .replace(/vbscript\s*:/gi, '')
+      .replace(/data\s*:/gi, '')
+      .replace(/on\w+\s*=/gi, '');
+  } while (sanitized !== prev);
 
   return sanitized;
 };
@@ -38,15 +45,18 @@ const HONEYPOT_FIELDS = ['company', 'website', 'phone_number'];
 let kv = null;
 let kvAvailable = false;
 
-// Initialize Vercel KV
+// Initialize Upstash Redis
 if (typeof process !== 'undefined' && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
   try {
-    const kvModule = await import('@vercel/kv');
-    kv = kvModule.kv;
+    const { Redis } = await import('@upstash/redis');
+    kv = new Redis({
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
+    });
     kvAvailable = true;
-    console.log('[Security] Vercel KV enabled for email tracking ✅');
+    console.log('[Security] Upstash Redis enabled for email tracking ✅');
   } catch (error) {
-    console.log('[Security] Vercel KV not available - Using in-memory fallback ⚠️');
+    console.log('[Security] Upstash Redis not available - Using in-memory fallback ⚠️');
     kvAvailable = false;
   }
 }
@@ -524,9 +534,15 @@ const calculateRiskScore = (req, requestBody, clientKey) => {
   return { score, signals };
 };
 
-setInterval(() => {
+// Lazy cleanup instead of setInterval (avoids timer leaks in serverless)
+let lastCleanupTime = 0;
+const CLEANUP_INTERVAL = 10 * 60 * 1000;
+
+function runLazyCleanup() {
   const now = Date.now();
-  
+  if (now - lastCleanupTime < CLEANUP_INTERVAL) return;
+  lastCleanupTime = now;
+
   for (const [key, tracker] of requestTracker.entries()) {
     tracker.requests = tracker.requests.filter(timestamp => 
       now - timestamp < 60 * 60 * 1000
@@ -554,9 +570,12 @@ setInterval(() => {
     payloadCacheSize: payloadCache.size,
     shadowBannedSize: shadowBanned.size
   });
-}, 10 * 60 * 1000);
+}
 
 export async function POST(req) {
+  // Trigger lazy cleanup of in-memory caches
+  runLazyCleanup();
+
   // --- DoS Mitigation: Memory Exhaustion Protection ---
   if (requestTracker.size > 10000) requestTracker.clear();
   if (captchaStates.size > 10000) captchaStates.clear();

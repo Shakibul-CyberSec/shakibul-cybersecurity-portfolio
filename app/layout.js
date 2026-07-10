@@ -32,10 +32,56 @@ export default async function RootLayout({ children }) {
             `}
           </style>
         )}
-        {/* Block Vercel toolbar injections before they cause CSP errors */}
+        {/* Block Vercel toolbar injections and patch CSP violations before they cause errors */}
         {nonce && (
           <script nonce={nonce} dangerouslySetInnerHTML={{ __html: `
             (function() {
+              // 1. Automatically inject nonce to all dynamically created style tags
+              var originalCreateElement = document.createElement;
+              document.createElement = function(tagName, options) {
+                var el = originalCreateElement.call(document, tagName, options);
+                var tag = tagName.toLowerCase();
+                if (tag === 'style') {
+                  el.setAttribute('nonce', '${nonce}');
+                } else if (tag === 'iframe') {
+                  // Intercept Vercel toolbar iframes and load blank pages to prevent frame-src violations
+                  Object.defineProperty(el, 'src', {
+                    get: function() {
+                      return this.getAttribute('src') || '';
+                    },
+                    set: function(val) {
+                      if (val && (val.indexOf('vercel.live') > -1 || val.indexOf('vercel') > -1)) {
+                        val = 'about:blank';
+                      }
+                      this.setAttribute('src', val);
+                    },
+                    configurable: true
+                  });
+                }
+                return el;
+              };
+
+              // 2. Intercept setAttribute('style', ...) and apply via CSSOM to prevent style-src violations
+              var originalSetAttribute = Element.prototype.setAttribute;
+              Element.prototype.setAttribute = function(name, value) {
+                if (name && name.toLowerCase() === 'style') {
+                  var cssRules = (value || '').split(';');
+                  for (var i = 0; i < cssRules.length; i++) {
+                    var rule = cssRules[i].trim();
+                    if (!rule) continue;
+                    var colonIndex = rule.indexOf(':');
+                    if (colonIndex > -1) {
+                      var prop = rule.substring(0, colonIndex).trim();
+                      var val = rule.substring(colonIndex + 1).trim();
+                      this.style.setProperty(prop, val);
+                    }
+                  }
+                  return;
+                }
+                return originalSetAttribute.call(this, name, value);
+              };
+
+              // 3. Aggressively clean up any physical DOM elements
               function removeVercelNodes(node) {
                 if (node.nodeType !== 1) return;
                 var tagName = node.tagName.toLowerCase();
@@ -58,10 +104,8 @@ export default async function RootLayout({ children }) {
                 }
               }
 
-              // Run immediately to catch any elements already in the DOM
               removeVercelNodes(document.documentElement);
 
-              // Observe any new additions to the DOM
               new MutationObserver(function(mutations) {
                 mutations.forEach(function(mutation) {
                   mutation.addedNodes.forEach(function(node) {

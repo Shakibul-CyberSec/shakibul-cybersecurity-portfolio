@@ -35,18 +35,41 @@ export default async function RootLayout({ children }) {
         {/* Block Vercel toolbar injections before they cause CSP errors */}
         {nonce && (
           <script nonce={nonce} dangerouslySetInnerHTML={{ __html: `
-            new MutationObserver(function(m,o){
-              m.forEach(function(r){
-                r.addedNodes.forEach(function(n){
-                  if(n.nodeType!==1)return;
-                  var s=n.getAttribute&&n.getAttribute('src')||'';
-                  if(s.indexOf('vercel.live')>-1||s.indexOf('feedback')>-1||
-                     (n.tagName==='IFRAME'&&s.indexOf('vercel')>-1)){
-                    n.remove();
+            (function() {
+              function removeVercelNodes(node) {
+                if (node.nodeType !== 1) return;
+                var tagName = node.tagName.toLowerCase();
+                var src = node.getAttribute && node.getAttribute('src') || '';
+                var id = node.id || '';
+                if (
+                  src.indexOf('vercel.live') > -1 ||
+                  src.indexOf('feedback') > -1 ||
+                  (tagName === 'iframe' && src.indexOf('vercel') > -1) ||
+                  id.indexOf('vercel-toolbar') > -1
+                ) {
+                  node.remove();
+                  return;
+                }
+                if (node.children) {
+                  var children = Array.from(node.children);
+                  for (var i = 0; i < children.length; i++) {
+                    removeVercelNodes(children[i]);
                   }
+                }
+              }
+
+              // Run immediately to catch any elements already in the DOM
+              removeVercelNodes(document.documentElement);
+
+              // Observe any new additions to the DOM
+              new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                  mutation.addedNodes.forEach(function(node) {
+                    removeVercelNodes(node);
+                  });
                 });
-              });
-            }).observe(document.documentElement,{childList:true,subtree:true});
+              }).observe(document.documentElement, { childList: true, subtree: true });
+            })();
           `}} />
         )}
       </head>

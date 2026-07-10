@@ -70,8 +70,10 @@ const nextConfig = {
     } : false,
   },
   
-  // Empty turbopack config to silence the warning
-  turbopack: {},
+  // Set Turbopack root directory to resolve workspace root warnings
+  turbopack: {
+    root: process.cwd(),
+  },
 };
 
 export default nextConfig; 

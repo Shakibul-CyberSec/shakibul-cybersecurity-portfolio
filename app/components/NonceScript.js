@@ -9,30 +9,39 @@ export default function NonceScript({ nonce }) {
       window.__webpack_nonce__ = nonce;
     }
 
-    // Remove Vercel toolbar injections that cause CSP errors
-    const cleanVercelToolbar = () => {
-      document.querySelectorAll(
-        'script[src*="vercel.live"], script[src*="feedback"], iframe[src*="vercel.live"]'
-      ).forEach(el => el.remove());
+    // Helper to recursively remove Vercel toolbar and feedback elements
+    const removeVercelNodes = (node) => {
+      if (node.nodeType !== 1) return;
+      const tagName = node.tagName.toLowerCase();
+      const src = node.getAttribute?.('src') || '';
+      const id = node.id || '';
+      
+      if (
+        src.includes('vercel.live') ||
+        src.includes('feedback') ||
+        (tagName === 'iframe' && src.includes('vercel')) ||
+        id.includes('vercel-toolbar')
+      ) {
+        node.remove();
+        return;
+      }
+      
+      if (node.children) {
+        const children = Array.from(node.children);
+        for (let i = 0; i < children.length; i++) {
+          removeVercelNodes(children[i]);
+        }
+      }
     };
 
-    // Clean immediately
-    cleanVercelToolbar();
+    // Clean existing elements immediately
+    removeVercelNodes(document.documentElement);
 
-    // Watch for future injections
+    // Watch for future injections and clean them recursively
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
-          if (node.nodeType !== 1) continue;
-          const el = node;
-          const src = el.getAttribute?.('src') || '';
-          if (src.includes('vercel.live') || src.includes('feedback')) {
-            el.remove();
-          }
-          // Also check for iframes
-          if (el.tagName === 'IFRAME' && src.includes('vercel.live')) {
-            el.remove();
-          }
+          removeVercelNodes(node);
         }
       }
     });

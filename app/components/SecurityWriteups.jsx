@@ -59,7 +59,7 @@ export default function SecurityWriteups() {
   const [activeWriteup, setActiveWriteup] = useState(null);
 
   return (
-    <section id="writeups" className="py-20 bg-[#0a0a0a] relative">
+    <section id="writeups" className="py-20 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}

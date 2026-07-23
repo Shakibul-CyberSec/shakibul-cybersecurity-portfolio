@@ -96,7 +96,7 @@ CTF{N2g0azFidTFfY1liM3JfczNjXzIwMjZfZDNmM25zMXYzX3N0NGNr}`
   };
 
   return (
-    <section id="terminal" className="py-16 bg-[#0a0a0a] relative">
+    <section id="terminal" className="py-16 relative">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Section Header */}

@@ -153,6 +153,18 @@ export default function SecurityWriteups() {
                   {activeWriteup.content}
                 </pre>
               </div>
+
+              <div className="pt-2 border-t border-cyber-border/40 flex justify-end">
+                <a
+                  href={`https://writeups.shakibul.com/writeup/${activeWriteup.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-neon-cyan/10 hover:bg-neon-cyan/20 border border-neon-cyan/40 text-neon-cyan font-mono text-xs font-semibold rounded-lg transition-all"
+                >
+                  <span>Open Full Paper on writeups.shakibul.com</span>
+                  <FiExternalLink />
+                </a>
+              </div>
             </div>
           </div>
         )}

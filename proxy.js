@@ -461,7 +461,7 @@ export async function proxy(request) {
 
   /* ---------- Strict CSP Header with Nonce ---------- */
   const isDev = process.env.NODE_ENV !== 'production';
-  const scriptSrc = `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ''} https://challenges.cloudflare.com/turnstile/v0/api.js;`;
+  const scriptSrc = `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ''} https://challenges.cloudflare.com/turnstile/v0/api.js https://vercel.live;`;
   const styleSrc = `style-src 'self' 'nonce-${nonce}' ${isDev ? "'unsafe-inline'" : ''};`;
 
   const cspHeader = `
@@ -470,8 +470,8 @@ export async function proxy(request) {
     ${styleSrc}
     font-src 'self' data: https://fonts.gstatic.com;
     img-src 'self' data: blob: https:;
-    connect-src 'self' https://challenges.cloudflare.com;
-    frame-src https://challenges.cloudflare.com;
+    connect-src 'self' https://challenges.cloudflare.com https://vercel.live;
+    frame-src 'self' https://challenges.cloudflare.com https://vercel.live;
     frame-ancestors 'none';
     base-uri 'none';
     form-action 'self';

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiShield, FiCpu, FiActivity, FiLock, FiAlertTriangle, FiCheckCircle, FiRefreshCw } from 'react-icons/fi';
 import { Animate, Stagger } from './Animations';
 

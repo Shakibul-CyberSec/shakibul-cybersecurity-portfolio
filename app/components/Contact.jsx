@@ -36,7 +36,7 @@ const Contact = () => {
           const result = await fp.get();
           setVisitorId(result.visitorId);
         } catch (error) {
-          setVisitorId('fallback-' + Math.random().toString(36).substring(7));
+          setVisitorId('fallback-' + crypto.randomUUID().replace(/-/g, '').substring(0, 16));
         }
       };
       

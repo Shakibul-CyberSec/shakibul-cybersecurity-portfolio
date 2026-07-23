@@ -461,12 +461,15 @@ const recordSuccessfulCaptcha = (clientKey, now) => {
 };
 
 const verifyTurnstile = async (token, ip) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
   try {
     const response = await fetch(
       'https://challenges.cloudflare.com/turnstile/v0/siteverify',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           secret: process.env.TURNSTILE_SECRET_KEY,
           response: token,
@@ -474,6 +477,7 @@ const verifyTurnstile = async (token, ip) => {
         })
       }
     );
+    clearTimeout(timeoutId);
     
     const data = await response.json();
     
@@ -487,6 +491,11 @@ const verifyTurnstile = async (token, ip) => {
       return { success: false, errors: data['error-codes'] };
     }
   } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      logger('error', 'Turnstile verification timed out after 5s', ip);
+      return { success: false, error: 'Verification timeout' };
+    }
     logger('error', 'Turnstile verification error', ip, {
       error: error.message
     });
@@ -695,8 +704,8 @@ export async function POST(req) {
       );
     }
 
-    // Track this email request (persistent via Vercel KV)
-    await trackEmailRequest(email, now);
+    // Track this email request AFTER honeypot check (moved from before) to prevent
+    // bot honeypot triggers from incrementing legitimate user counters (H-2)
 
     const captchaRequired = await shouldRequireCaptcha(clientKey, email, now);
     
@@ -815,6 +824,9 @@ export async function POST(req) {
       );
     }
 
+    // Track only after honeypot check passes — bots get shadow-banned before this point
+    await trackEmailRequest(email, now);
+
     const { firstName, lastName, subject, message } = requestBody;
 
     const missingFields = [];
@@ -873,6 +885,13 @@ export async function POST(req) {
     if (trimmedData.message.length > 2000) {
       return new Response(
         JSON.stringify({ error: 'Message is too long (maximum 2000 characters).' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (trimmedData.message.length < 10) {
+      return new Response(
+        JSON.stringify({ error: 'Message is too short (minimum 10 characters).' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }

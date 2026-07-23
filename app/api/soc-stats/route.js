@@ -20,10 +20,23 @@ export async function GET() {
     let rateLimitCheckCount = 8940;
 
     if (kv) {
-      const keys = await kv.keys('*');
-      shadowBannedSubnets = keys.filter(k => k.startsWith('ban:') || k.startsWith('sub:')).length || 38;
-      scrapersBlocked = keys.filter(k => k.startsWith('vio:')).length * 4 + 1420;
-      rateLimitCheckCount = keys.length * 15 + 8940;
+      let cursor = 0;
+      let banSubnetCount = 0;
+      let violationCount = 0;
+      let totalKeys = 0;
+
+      // Use SCAN (non-blocking cursor iteration) instead of KEYS * (blocking O(N))
+      do {
+        const [nextCursor, keys] = await kv.scan(cursor, { count: 100 });
+        cursor = Number(nextCursor);
+        banSubnetCount += keys.filter(k => k.startsWith('ban:') || k.startsWith('sub:')).length;
+        violationCount += keys.filter(k => k.startsWith('vio:')).length;
+        totalKeys += keys.length;
+      } while (cursor !== 0);
+
+      shadowBannedSubnets = banSubnetCount || 38;
+      scrapersBlocked = violationCount * 4 + 1420;
+      rateLimitCheckCount = totalKeys * 15 + 8940;
     }
 
     return NextResponse.json({

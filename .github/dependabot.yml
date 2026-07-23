@@ -1,27 +1,36 @@
 version: 2
 updates:
-  # 1. For npm (Next.js and JS dependencies)
-  - package-ecosystem: "npm" # For Node.js projects
-    directory: "/"            # Root directory where package.json is located
+  # 1. Dependabot Version Updates for npm (Next.js, React, Tailwind, & JS Packages)
+  - package-ecosystem: "npm"
+    directory: "/"
     schedule:
-      interval: "weekly"      # Check for updates every week
-    open-pull-requests-limit: 5 # Limit open PRs to avoid too many
-    versioning-strategy: "auto" # Use semantic versioning (default)
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    target-branch: "main"
+    open-pull-requests-limit: 10
+    versioning-strategy: "increase"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
     labels:
       - "dependencies"
       - "npm"
+      - "automated-pr"
     assignees:
-      - "shakibul"            # Assign PRs to you (optional)
+      - "shakibul"
 
-  # 2. GitHub Actions (Optional: If you use CI/CD workflows)
+  # 2. GitHub Actions CI/CD Workflow Updates
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    target-branch: "main"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(actions)"
     labels:
       - "dependencies"
       - "github-actions"
-      
-
-  
-

@@ -12,14 +12,14 @@ export default async function RootLayout({ children }) {
   const nonce = headersList.get('x-nonce');
 
   return (
-    <html lang="en" className="dark">
-      <head>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <head suppressHydrationWarning>
         <meta name="theme-color" content="#0a0a0a" />
         <link rel="icon" type="image/svg+xml" href="/cyber-icon.svg" />
 
         {/* Critical inline styles with nonce */}
         {nonce && (
-          <style nonce={nonce}>
+          <style nonce={nonce} suppressHydrationWarning>
             {`
               body { 
                 margin: 0; 

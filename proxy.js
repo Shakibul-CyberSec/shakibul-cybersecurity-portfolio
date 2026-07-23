@@ -460,12 +460,16 @@ export async function proxy(request) {
   const response = NextResponse.next();
 
   /* ---------- Strict CSP Header with Nonce ---------- */
+  const isDev = process.env.NODE_ENV !== 'production';
+  const scriptSrc = `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ''} https://challenges.cloudflare.com/turnstile/v0/api.js;`;
+  const styleSrc = `style-src 'self' 'nonce-${nonce}' ${isDev ? "'unsafe-inline'" : ''};`;
+
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com/turnstile/v0/api.js;
-    style-src 'self' 'nonce-${nonce}';
-    font-src 'self' data:;
-    img-src 'self' data: blob:;
+    ${scriptSrc}
+    ${styleSrc}
+    font-src 'self' data: https://fonts.gstatic.com;
+    img-src 'self' data: blob: https:;
     connect-src 'self' https://challenges.cloudflare.com;
     frame-src https://challenges.cloudflare.com;
     frame-ancestors 'none';

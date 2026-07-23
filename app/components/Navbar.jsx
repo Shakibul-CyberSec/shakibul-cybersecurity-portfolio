@@ -51,7 +51,10 @@ const Navbar = () => {
     { href: '#home', label: 'Home' },
     { href: '#about', label: 'About' },
     { href: '#skills', label: 'Skills' },
-    { href: '#certifications', label: 'Certifications' },
+    { href: '#soc', label: 'SOC' },
+    { href: '#terminal', label: 'Terminal' },
+    { href: '#writeups', label: 'Writeups' },
+    { href: '#certifications', label: 'Certs' },
     { href: '#contact', label: 'Contact' },
   ];
 

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { FiBookOpen, FiX, FiArrowRight } from 'react-icons/fi';
+import { FiBookOpen, FiX, FiArrowRight, FiExternalLink } from 'react-icons/fi';
 import { Animate, Stagger } from './Animations';
 
 const writeups = [
@@ -112,6 +112,21 @@ export default function SecurityWriteups() {
             ))}
           </div>
         </Stagger>
+
+        {/* External Link to Full Security Blog / Subdomain */}
+        <Animate animation="fadeInUp" delay={0.3}>
+          <div className="mt-12 text-center">
+            <a
+              href="https://writeups.shakibul.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center space-x-3 px-6 py-3 bg-neon-cyan/10 hover:bg-neon-cyan/20 border border-neon-cyan/40 text-neon-cyan font-mono text-xs sm:text-sm font-semibold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-neon-cyan/20 group"
+            >
+              <span>Explore All Technical Writeups & CTF Labs on writeups.shakibul.com</span>
+              <FiExternalLink className="group-hover:translate-x-1 transition-transform duration-300" />
+            </a>
+          </div>
+        </Animate>
 
         {/* Writeup Modal Viewer */}
         {activeWriteup && (
